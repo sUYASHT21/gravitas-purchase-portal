@@ -56,7 +56,7 @@ export default function CompilationDashboard() {
           <div>
             <h4 className="text-purple-900 font-bold text-sm">Required Google Sheet Format</h4>
             <p className="text-purple-800 text-sm mt-1">
-              Sheets must be set to <strong>"Anyone with the link can view"</strong> and have these exact column headers: <strong>Items | Qty | Category | Amazon Links</strong>
+              Sheets must be set to <strong>"Anyone with the link can view"</strong> and must include these exact column headers: <strong>SR NO | Item | Quantity | (Optional: Amazon Links)</strong>
             </p>
           </div>
         </div>

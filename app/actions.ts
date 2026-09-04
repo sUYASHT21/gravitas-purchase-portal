@@ -108,15 +108,14 @@ export async function compileSheets(urls: string[]) {
         continue;
       }
 
-      // Strict header validation
+      // Flexible header validation
       const firstRow = data[0];
       const headers = Object.keys(firstRow).map(k => k.toLowerCase());
       const hasItems = headers.some(h => h.includes('item'));
       const hasQty = headers.some(h => h.includes('qty') || h.includes('quantity'));
-      const hasCategory = headers.some(h => h.includes('category') || h.includes('type'));
       
-      if (!hasItems || !hasQty || !hasCategory) {
-        errors.push(`Missing required headers (Items | Qty | Category) in sheet: ${url}`);
+      if (!hasItems || !hasQty) {
+        errors.push(`Missing required headers (Item | Quantity) in sheet: ${url}`);
         continue;
       }
 
@@ -129,7 +128,7 @@ export async function compileSheets(urls: string[]) {
         const name = getVal('item');
         const quantity = getVal('qty') || getVal('quantity');
         const amazonLink = getVal('amazon');
-        const category = getVal('category');
+        const category = getVal('category') || '';
 
         if (!name) continue;
         const item = { name, quantity, amazonLink };
@@ -140,12 +139,11 @@ export async function compileSheets(urls: string[]) {
         }
 
         const catLower = category.toLowerCase();
-        if (catLower.includes('stationery') || catLower.includes('pen') || catLower.includes('paper')) categories.Stationery.push(item);
-        else if (catLower.includes('culinary') || catLower.includes('food') || catLower.includes('beverage')) categories.Culinary.push(item);
+        if (catLower.includes('culinary') || catLower.includes('food') || catLower.includes('beverage')) categories.Culinary.push(item);
         else if (catLower.includes('chemical') || catLower.includes('liquid')) categories.Chemicals.push(item);
         else if (catLower.includes('electrical') || catLower.includes('wire') || catLower.includes('cable')) categories.Electricals.push(item);
         else {
-          categories.Stationery.push(item); // Fallback
+          categories.Stationery.push(item); // Default fallback if missing or unknown
         }
       }
     } catch (e: any) {
