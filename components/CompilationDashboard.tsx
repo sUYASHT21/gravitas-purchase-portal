@@ -140,30 +140,37 @@ export default function CompilationDashboard() {
 
             {/* Render Categories */}
             <div className="space-y-10">
-              {Object.entries(compiledData).map(([category, items]) => {
-                if (items.length === 0) return null;
-                
-                const isAmazon = category === 'AmazonItems';
-                return (
-                  <div key={category} className="break-inside-avoid">
-                    <h4 className="text-lg font-bold underline mb-3">
-                      {isAmazon ? 'Amazon Online Orders' : category}
-                    </h4>
-                    <table className="w-full text-left border-collapse border border-black bg-white/50">
-                      <thead>
-                        <tr>
-                          <th className="border border-black px-3 py-2 font-bold w-16 text-center bg-gray-100/80">Sr No</th>
-                          <th className="border border-black px-3 py-2 font-bold bg-gray-100/80">Items</th>
-                          <th className="border border-black px-3 py-2 font-bold w-24 text-center bg-gray-100/80">Qty</th>
+              <table className="w-full text-left border-collapse border border-black bg-white/50">
+                <thead>
+                  <tr>
+                    <th className="border border-black px-3 py-2 font-bold w-16 text-center bg-gray-100/80">SR NO</th>
+                    <th className="border border-black px-3 py-2 font-bold bg-gray-100/80">Item</th>
+                    <th className="border border-black px-3 py-2 font-bold w-24 text-center bg-gray-100/80">Quantity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    let runningIndex = 1;
+                    return Object.entries(compiledData).map(([category, items]) => {
+                      if (items.length === 0) return null;
+                      
+                      const isAmazon = category === 'AmazonItems';
+                      const categoryHeader = (
+                        <tr key={`header-${category}`} className="bg-gray-50/50">
+                          <td colSpan={3} className="border border-black px-3 py-2 font-bold underline text-lg">
+                            {isAmazon ? 'Amazon Online Orders' : category}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((item, idx) => (
-                          <tr key={idx}>
-                            <td className="border border-black px-3 py-2 text-center">{idx + 1}</td>
+                      );
+
+                      const itemRows = items.map((item) => {
+                        const isAmazonLink = isAmazon && item.amazonLink;
+                        return (
+                          <tr key={`${category}-${runningIndex}`}>
+                            <td className="border border-black px-3 py-2 text-center">{runningIndex++}</td>
                             <td className="border border-black px-3 py-2">
                               {item.name}
-                              {isAmazon && item.amazonLink && (
+                              {isAmazonLink && (
                                 <div className="text-sm text-blue-800 mt-1 break-all">
                                   Link: <a href={item.amazonLink} target="_blank" rel="noreferrer" className="underline font-sans">{item.amazonLink}</a>
                                 </div>
@@ -171,12 +178,14 @@ export default function CompilationDashboard() {
                             </td>
                             <td className="border border-black px-3 py-2 text-center">{item.quantity}</td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
+                        );
+                      });
+
+                      return [categoryHeader, ...itemRows];
+                    });
+                  })()}
+                </tbody>
+              </table>
             </div>
 
             {/* Signature Blocks */}
