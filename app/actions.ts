@@ -103,24 +103,25 @@ export async function compileData(payloads: CompilePayload[]) {
         const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
         
         try {
+          console.log(">>> EXACT URL BEING FETCHED:", exportUrl);
           const res = await fetch(exportUrl, { redirect: 'follow' });
           if (!res.ok) {
-            errors.push(`Failed to read Sheet. Ensure access is set to 'Anyone with the link'. (${url})`);
+            errors.push(`Failed to read Sheet. Ensure access is set to 'Anyone with the link'. (${exportUrl})`);
             continue;
           }
           
           const csvText = await res.text();
           if (csvText.trim().toLowerCase().startsWith('<!doctype html>') || csvText.trim().toLowerCase().startsWith('<html')) {
-            errors.push(`Sheet is private. Please change access to 'Anyone with the link can view'. (${url})`);
+            errors.push(`Sheet is private. Please change access to 'Anyone with the link can view'. (${exportUrl})`);
             continue;
           }
   
           workbook = XLSX.read(csvText, { type: 'string' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           fileData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-        } catch (fetchErr) {
+        } catch (fetchErr: any) {
           console.error('Fetch Error:', fetchErr);
-          errors.push(`Unable to reach Google Sheets. Please check your internet connection or try again. (${url})`);
+          errors.push(`Fetch failed for ${exportUrl}: ${fetchErr.message || fetchErr}`);
           continue;
         }
       } else {
