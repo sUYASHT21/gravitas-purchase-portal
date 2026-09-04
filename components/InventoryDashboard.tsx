@@ -37,48 +37,48 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
         </div>
         
         <div className="flex flex-col space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-gray-200 flex items-center justify-between shadow-sm">
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-5 rounded-2xl shadow-lg shadow-blue-200 text-white flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 font-medium">Total Items</p>
-              <h4 className="text-2xl font-bold text-gray-800">{initialItems.length}</h4>
+              <p className="text-sm text-blue-100 font-semibold uppercase tracking-wider">Total Items</p>
+              <h4 className="text-3xl font-extrabold mt-1">{initialItems.length}</h4>
             </div>
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-              <Package className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <Package className="w-6 h-6 text-white" />
             </div>
           </div>
           
-          <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex items-center justify-between shadow-sm">
+          <div className="bg-gradient-to-r from-orange-400 to-amber-500 p-5 rounded-2xl shadow-lg shadow-amber-200 text-white flex items-center justify-between">
             <div>
-              <p className="text-sm text-amber-700 font-medium">Low Stock Alerts</p>
-              <h4 className="text-2xl font-bold text-amber-900">{lowStockCount}</h4>
+              <p className="text-sm text-amber-100 font-semibold uppercase tracking-wider">Low Stock</p>
+              <h4 className="text-3xl font-extrabold mt-1">{lowStockCount}</h4>
             </div>
-            <div className="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center text-amber-700">
-              <AlertCircle className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <AlertCircle className="w-6 h-6 text-white" />
             </div>
           </div>
 
-          <div className="bg-red-50 p-4 rounded-xl border border-red-200 flex items-center justify-between shadow-sm">
+          <div className="bg-gradient-to-r from-rose-500 to-red-600 p-5 rounded-2xl shadow-lg shadow-red-200 text-white flex items-center justify-between">
             <div>
-              <p className="text-sm text-red-700 font-medium">Out of Stock</p>
-              <h4 className="text-2xl font-bold text-red-900">{outOfStockCount}</h4>
+              <p className="text-sm text-red-100 font-semibold uppercase tracking-wider">Out of Stock</p>
+              <h4 className="text-3xl font-extrabold mt-1">{outOfStockCount}</h4>
             </div>
-            <div className="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center text-red-700">
-              <AlertCircle className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <AlertCircle className="w-6 h-6 text-white" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row gap-4 justify-between items-center shadow-sm">
+      <div className="bg-white/70 backdrop-blur-lg p-5 rounded-2xl border border-white/40 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xl shadow-purple-900/5">
         <div className="relative w-full md:w-96">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-            placeholder="Search inventory..."
+            className="block w-full pl-11 pr-4 py-3 border-none rounded-xl leading-5 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-500 sm:text-sm transition-all"
+            placeholder="Search vibrant inventory..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -89,10 +89,10 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-300 ${
                 selectedCategory === category 
-                  ? 'bg-gray-800 text-white' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-pink-200 scale-105' 
+                  : 'bg-white text-gray-600 hover:bg-purple-50 border border-gray-100 hover:text-purple-700'
               }`}
             >
               {category}
