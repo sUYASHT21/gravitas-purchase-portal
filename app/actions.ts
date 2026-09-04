@@ -148,19 +148,25 @@ export async function compileData(payloads: CompilePayload[]) {
         const category = getVal(['category', 'type', 'dept']) || '';
 
         if (!name) continue;
-        const item = { name, quantity, amazonLink };
 
-        if (amazonLink && amazonLink.startsWith('http')) {
-          categories.AmazonItems.push(item);
-          continue;
-        }
+        // Deduplication & Quantity Summing
+        const parsedQty = parseInt(String(quantity).replace(/[^0-9]/g, ''), 10) || 1;
+        const targetCategory = amazonLink && amazonLink.startsWith('http') ? categories.AmazonItems :
+          category.toLowerCase().includes('culinary') || category.toLowerCase().includes('food') || category.toLowerCase().includes('beverage') ? categories.Culinary :
+          category.toLowerCase().includes('chemical') || category.toLowerCase().includes('liquid') ? categories.Chemicals :
+          category.toLowerCase().includes('electrical') || category.toLowerCase().includes('wire') || category.toLowerCase().includes('cable') ? categories.Electricals :
+          categories.Stationery; // Fallback
 
-        const catLower = category.toLowerCase();
-        if (catLower.includes('culinary') || catLower.includes('food') || catLower.includes('beverage')) categories.Culinary.push(item);
-        else if (catLower.includes('chemical') || catLower.includes('liquid')) categories.Chemicals.push(item);
-        else if (catLower.includes('electrical') || catLower.includes('wire') || catLower.includes('cable')) categories.Electricals.push(item);
-        else {
-          categories.Stationery.push(item); // Default fallback if missing or unknown
+        const existingItem = targetCategory.find(i => i.name.toLowerCase() === name.toLowerCase());
+        
+        if (existingItem) {
+          const currentQty = parseInt(String(existingItem.quantity).replace(/[^0-9]/g, ''), 10) || 1;
+          existingItem.quantity = currentQty + parsedQty;
+          if (amazonLink && amazonLink.startsWith('http') && !existingItem.amazonLink) {
+            existingItem.amazonLink = amazonLink;
+          }
+        } else {
+          targetCategory.push({ name, quantity: parsedQty, amazonLink });
         }
       }
     } catch (e: any) {
