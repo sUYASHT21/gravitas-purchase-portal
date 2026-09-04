@@ -172,7 +172,22 @@ export default function CompilationDashboard() {
           </div>
 
           {/* Strict A4 Container with Background */}
-          <div className="shadow-2xl print:shadow-none letterhead-print-bg text-black text-base font-serif bg-white relative">
+          <div 
+            className="mx-auto shadow-2xl print:shadow-none text-black text-base font-serif bg-white relative"
+            style={{
+              width: '210mm',
+              maxWidth: '210mm',
+              minHeight: '297mm',
+              padding: '25mm 20mm',
+              backgroundImage: "url('/indentbackground.png')",
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              WebkitPrintColorAdjust: 'exact',
+              printColorAdjust: 'exact',
+              boxSizing: 'border-box'
+            }}
+          >
             
             {/* Top Date */}
             <div className="text-right mb-4">
