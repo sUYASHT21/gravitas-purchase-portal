@@ -176,105 +176,139 @@ export default function CompilationDashboard() {
             className="mx-auto shadow-2xl print:shadow-none text-black text-base font-serif bg-white relative"
             style={{
               width: '210mm',
-              maxWidth: '210mm',
               minHeight: '297mm',
-              padding: '45mm 25mm 45mm 25mm',
-              backgroundImage: "url('/indentbackground.png')",
-              backgroundSize: '100% 100%',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              WebkitPrintColorAdjust: 'exact',
-              printColorAdjust: 'exact',
               boxSizing: 'border-box'
             }}
           >
             
-            {/* Top Date */}
-            <div className="text-right mb-4">
-              <p>{new Date().toLocaleDateString('en-GB')}</p>
+            {/* Screen Repeating Background (Visible only on monitor) */}
+            <div 
+              className="absolute top-0 left-0 w-full h-full -z-10 print:hidden"
+              style={{
+                backgroundImage: "url('/indentbackground.png')",
+                backgroundSize: '210mm 297mm',
+                backgroundRepeat: 'repeat-y',
+              }}
+            ></div>
+
+            {/* Print Fixed Background (Repeats on every printed page perfectly in Chrome) */}
+            <div 
+              className="fixed top-0 left-0 w-[210mm] h-[297mm] -z-10 hidden print:block"
+            >
+              <img 
+                src="/indentbackground.png" 
+                className="w-full h-full" 
+                style={{ objectFit: '100% 100%', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} 
+              />
             </div>
 
-            {/* Top Left To Address */}
-            <div className="mb-6">
-              <p>To</p>
-              <p>Purchase Office</p>
-              <p>VIT</p>
-            </div>
-
-            {/* Subject Line */}
-            <div className="text-center font-bold mb-6">
-              <p>Sub.: Request to purchase the items for GraVITas’26 – reg.</p>
-            </div>
-
-            {/* Salutation & Body */}
-            <div className="mb-8">
-              <p>Dear sir,</p>
-              <p className="mt-2 indent-8">
-                Herewith I have mentioned the items which is urgently need for GraVITas’26. Kindly approve and issue the following items.
-              </p>
-            </div>
-
-            {/* Render Categories */}
-            <div className="space-y-10">
-              <table className="w-full text-left border-collapse border border-black bg-white/50">
-                <thead>
-                  <tr>
-                    <th className="border border-black px-3 py-2 font-bold w-16 text-center bg-gray-100/80">SR NO</th>
-                    <th className="border border-black px-3 py-2 font-bold bg-gray-100/80">Item</th>
-                    <th className="border border-black px-3 py-2 font-bold w-24 text-center bg-gray-100/80">Quantity</th>
-                  </tr>
+            {/* Content padding boundaries */}
+            <div style={{ paddingLeft: '25mm', paddingRight: '25mm' }}>
+              <table className="w-full border-none">
+                {/* 45mm Top Safe Zone (Repeats every page) */}
+                <thead className="table-header-group">
+                  <tr><th style={{ height: '45mm', border: 'none' }}></th></tr>
                 </thead>
+                
+                {/* 35mm Bottom Safe Zone (Repeats every page) */}
+                <tfoot className="table-footer-group">
+                  <tr><td style={{ height: '35mm', border: 'none' }}></td></tr>
+                </tfoot>
+
                 <tbody>
-                  {(() => {
-                    let runningIndex = 1;
-                    return Object.entries(compiledData).map(([category, items]) => {
-                      if (items.length === 0) return null;
+                  <tr>
+                    <td className="align-top border-none p-0 m-0">
                       
-                      const isAmazon = category === 'AmazonItems';
-                      const categoryHeader = (
-                        <tr key={`header-${category}`} className="bg-gray-50/50">
-                          <td colSpan={3} className="border border-black px-3 py-2 font-bold underline text-lg">
-                            {isAmazon ? 'Amazon Online Orders' : category}
-                          </td>
-                        </tr>
-                      );
+                      {/* Top Date */}
+                      <div className="text-right mb-4">
+                        <p>{new Date().toLocaleDateString('en-GB')}</p>
+                      </div>
 
-                      const itemRows = items.map((item) => {
-                        const isAmazonLink = isAmazon && item.amazonLink;
-                        return (
-                          <tr key={`${category}-${runningIndex}`}>
-                            <td className="border border-black px-3 py-2 text-center">{runningIndex++}</td>
-                            <td className="border border-black px-3 py-2">
-                              {item.name}
-                              {isAmazonLink && (
-                                <div className="text-sm text-blue-800 mt-1 break-all">
-                                  Link: <a href={item.amazonLink} target="_blank" rel="noreferrer" className="underline font-sans">{item.amazonLink}</a>
-                                </div>
-                              )}
-                            </td>
-                            <td className="border border-black px-3 py-2 text-center">{item.quantity}</td>
+                      {/* Top Left To Address */}
+                      <div className="mb-6">
+                        <p>To</p>
+                        <p>Purchase Office</p>
+                        <p>VIT</p>
+                      </div>
+
+                      {/* Subject Line */}
+                      <div className="text-center font-bold mb-6">
+                        <p>Sub.: Request to purchase the items for GraVITas’26 – reg.</p>
+                      </div>
+
+                      {/* Salutation & Body */}
+                      <div className="mb-8">
+                        <p>Dear sir,</p>
+                        <p className="mt-2 indent-8">
+                          Herewith I have mentioned the items which is urgently need for GraVITas’26. Kindly approve and issue the following items.
+                        </p>
+                      </div>
+
+                      {/* Inner Data Table (The headers will automatically repeat on page break) */}
+                      <table className="w-full text-left border-collapse border border-black bg-white/50">
+                        <thead className="table-header-group">
+                          <tr>
+                            <th className="border border-black px-3 py-2 font-bold w-16 text-center bg-gray-100/80">SR NO</th>
+                            <th className="border border-black px-3 py-2 font-bold bg-gray-100/80">Item</th>
+                            <th className="border border-black px-3 py-2 font-bold w-24 text-center bg-gray-100/80">Quantity</th>
                           </tr>
-                        );
-                      });
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            let runningIndex = 1;
+                            return Object.entries(compiledData).map(([category, items]) => {
+                              if (items.length === 0) return null;
+                              
+                              const isAmazon = category === 'AmazonItems';
+                              const categoryHeader = (
+                                <tr key={`header-${category}`} className="bg-gray-50/50 break-after-avoid">
+                                  <td colSpan={3} className="border border-black px-3 py-2 font-bold underline text-lg">
+                                    {isAmazon ? 'Amazon Online Orders' : category}
+                                  </td>
+                                </tr>
+                              );
 
-                      return [categoryHeader, ...itemRows];
-                    });
-                  })()}
+                              const itemRows = items.map((item) => {
+                                const isAmazonLink = isAmazon && item.amazonLink;
+                                return (
+                                  <tr key={`${category}-${runningIndex}`} className="break-inside-avoid">
+                                    <td className="border border-black px-3 py-2 text-center">{runningIndex++}</td>
+                                    <td className="border border-black px-3 py-2">
+                                      {item.name}
+                                      {isAmazonLink && (
+                                        <div className="text-sm text-blue-800 mt-1 break-all">
+                                          Link: <a href={item.amazonLink} target="_blank" rel="noreferrer" className="underline font-sans">{item.amazonLink}</a>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="border border-black px-3 py-2 text-center">{item.quantity}</td>
+                                  </tr>
+                                );
+                              });
+
+                              return [categoryHeader, ...itemRows];
+                            });
+                          })()}
+                        </tbody>
+                      </table>
+
+                      {/* Signature Blocks */}
+                      <div className="mt-32 pt-8 flex justify-between items-end break-inside-avoid relative z-10">
+                        <div className="text-center w-48 font-bold">
+                          Faculty Organiser (Purchase)
+                        </div>
+                        <div className="text-center w-48 font-bold">
+                          Co-Convenor (Purchase)
+                        </div>
+                        <div className="text-center w-48 font-bold">
+                          Convenor
+                        </div>
+                      </div>
+
+                    </td>
+                  </tr>
                 </tbody>
               </table>
-            </div>
-
-            {/* Signature Blocks */}
-            <div className="mt-32 pt-8 flex justify-between items-end break-inside-avoid relative z-10">
-              <div className="text-center w-48 font-bold">
-                Faculty Organiser (Purchase)
-              </div>
-              <div className="text-center w-48 font-bold">
-                Co-Convenor (Purchase)
-              </div>
-              <div className="text-center w-48 font-bold">
-                Convenor
-              </div>
             </div>
           </div>
         </div>
