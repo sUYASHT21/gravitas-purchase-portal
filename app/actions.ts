@@ -1,5 +1,8 @@
 'use server';
 
+import dns from 'node:dns';
+dns.setDefaultResultOrder('ipv4first');
+
 import { getDb } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import * as XLSX from 'xlsx';
@@ -116,8 +119,8 @@ export async function compileData(payloads: CompilePayload[]) {
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           fileData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
         } catch (fetchErr) {
-          console.error(fetchErr);
-          errors.push(`Network error fetching Sheet. Ensure access is set to 'Anyone with the link'. (${url})`);
+          console.error('Fetch Error:', fetchErr);
+          errors.push(`Unable to reach Google Sheets. Please check your internet connection or try again. (${url})`);
           continue;
         }
       } else {
