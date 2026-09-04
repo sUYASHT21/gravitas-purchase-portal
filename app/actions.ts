@@ -163,7 +163,8 @@ export async function compileData(payloads: CompilePayload[]) {
           category.toLowerCase().includes('electrical') || category.toLowerCase().includes('wire') || category.toLowerCase().includes('cable') ? categories.Electricals :
           categories.Stationery; // Fallback
 
-        const existingItem = targetCategory.find(i => i.name.toLowerCase() === name.toLowerCase());
+        const normalizedName = name.trim().toLowerCase();
+        const existingItem = targetCategory.find(i => i.name.trim().toLowerCase() === normalizedName);
         
         if (existingItem) {
           const currentQty = parseInt(String(existingItem.quantity).replace(/[^0-9]/g, ''), 10) || 1;

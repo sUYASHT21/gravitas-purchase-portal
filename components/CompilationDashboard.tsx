@@ -56,36 +56,44 @@ export default function CompilationDashboard() {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setIsCompiling(true);
     setCompileErrors([]);
 
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const content = evt.target?.result as string;
-      const b64 = content.split(',')[1] || content;
-      
-      const payload: CompilePayload = {
-        type: 'base64',
-        content: b64,
-        sourceName: file.name
-      };
+    const payloads: CompilePayload[] = [];
 
-      try {
-        const result = await compileData([payload]);
-        setCompiledData(result.categories);
-        setCompileErrors(result.errors);
-      } catch (error) {
-        console.error(error);
-        setCompileErrors(['A fatal error occurred while processing the file.']);
-      } finally {
-        setIsCompiling(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    };
-    reader.readAsDataURL(file);
+    const readPromises = Array.from(files).map((file) => {
+      return new Promise<void>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const content = evt.target?.result as string;
+          const b64 = content.split(',')[1] || content;
+          payloads.push({
+            type: 'base64',
+            content: b64,
+            sourceName: file.name
+          });
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    await Promise.all(readPromises);
+
+    try {
+      const result = await compileData(payloads);
+      setCompiledData(result.categories);
+      setCompileErrors(result.errors);
+    } catch (error) {
+      console.error(error);
+      setCompileErrors(['A fatal error occurred while processing the files.']);
+    } finally {
+      setIsCompiling(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -121,6 +129,7 @@ export default function CompilationDashboard() {
             type="file" 
             accept=".csv, .xlsx, .xls"
             className="hidden"
+            multiple
             ref={fileInputRef}
             onChange={handleFileUpload}
           />
@@ -146,28 +155,27 @@ export default function CompilationDashboard() {
         </div>
       </div>
 
+      {/* Output Section */}
       {compileErrors.length > 0 && (
-        <div className="print:hidden bg-red-50 border border-red-200 p-6 rounded-2xl shadow-sm">
-          <h3 className="text-red-800 font-bold flex items-center mb-3">
+        <div className="print:hidden bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl shadow-md">
+          <h4 className="text-red-900 font-bold flex items-center mb-2">
             <AlertCircle className="w-5 h-5 mr-2" /> Compilation Errors
-          </h3>
-          <ul className="list-disc pl-5 space-y-1">
-            {compileErrors.map((err, i) => (
-              <li key={i} className="text-red-600 text-sm">{err}</li>
-            ))}
+          </h4>
+          <ul className="list-disc pl-5 text-red-700 space-y-1 text-sm font-medium">
+            {compileErrors.map((err, i) => <li key={i}>{err}</li>)}
           </ul>
         </div>
       )}
 
-      {/* Printable Indent Output */}
       {compiledData && (
-        <div className="w-full overflow-x-auto pb-8 print:overflow-visible print:pb-0">
-          <div className="print:hidden flex justify-end mb-6 max-w-4xl mx-auto">
-            <button 
+        <div className="space-y-6">
+          <div className="print:hidden flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-800">Preview Indent</h2>
+            <button
               onClick={() => window.print()}
-              className="flex items-center px-6 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg"
+              className="flex items-center px-6 py-2.5 bg-black text-white font-bold rounded-lg shadow-md hover:bg-gray-800 transition-colors"
             >
-              <Printer className="w-4 h-4 mr-2" /> Print Indent
+              <Printer className="w-5 h-5 mr-2" /> Print Official Indent
             </button>
           </div>
 
@@ -177,18 +185,33 @@ export default function CompilationDashboard() {
             style={{
               width: '210mm',
               minHeight: '297mm',
-              backgroundImage: "url('/indentbackground.png')",
-              backgroundSize: '100% 100%',
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'center',
-              WebkitPrintColorAdjust: 'exact',
-              printColorAdjust: 'exact',
               boxSizing: 'border-box'
             }}
           >
             
-            {/* Content padding boundaries */}
-            <div style={{ paddingLeft: '25mm', paddingRight: '25mm' }}>
+            {/* Screen Repeating Background (Visible only on monitor to maintain 1:1 preview) */}
+            <div 
+              className="absolute top-0 left-0 w-full h-full z-0 print:hidden"
+              style={{
+                backgroundImage: "url('/indentbackground.png')",
+                backgroundSize: '210mm 297mm',
+                backgroundRepeat: 'repeat-y',
+              }}
+            ></div>
+
+            {/* Print Fixed Background (Repeats on every printed page seamlessly via position fixed pseudo-element technique) */}
+            <div 
+              className="fixed top-0 left-0 w-[210mm] h-[297mm] z-0 hidden print:block"
+            >
+              <img 
+                src="/indentbackground.png" 
+                className="w-full h-full" 
+                style={{ objectFit: '100% 100%', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} 
+              />
+            </div>
+
+            {/* Inner Content padding boundaries acting as the strict safe zone */}
+            <div className="relative z-10" style={{ paddingLeft: '25mm', paddingRight: '25mm' }}>
               <table className="w-full border-none">
                 {/* 45mm Top Safe Zone (Repeats every page) */}
                 <thead className="table-header-group">
