@@ -34,3 +34,24 @@ body {
     scrollbar-width: none;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  .letterhead-print-bg {
+    background-image: url('/letterhead-bg.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    min-height: 100vh;
+    padding-top: 40mm !important;
+    padding-bottom: 40mm !important;
+    padding-left: 20mm !important;
+    padding-right: 20mm !important;
+    box-sizing: border-box;
+  }
+}

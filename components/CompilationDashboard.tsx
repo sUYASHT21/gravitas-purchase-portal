@@ -43,6 +43,10 @@ export default function CompilationDashboard() {
   return (
     <div className="space-y-8">
       {/* Input Section (Hidden when printing) */}
+      <div className="print:hidden flex justify-between items-center mb-6">
+        <a href="/" className="text-purple-600 font-bold hover:underline">← Back to Dashboard</a>
+      </div>
+
       <div className="print:hidden bg-white/70 backdrop-blur-lg p-6 rounded-3xl border border-white/40 shadow-xl shadow-purple-900/5">
         <label className="block text-sm font-bold text-gray-700 mb-2">
           Paste Google Sheet Links (One per line)
@@ -80,45 +84,64 @@ export default function CompilationDashboard() {
             </button>
           </div>
 
-          <div className="print-area">
-            {/* Letterhead Header */}
-            <div className="text-center border-b-2 border-gray-800 pb-6 mb-8">
-              <h2 className="text-3xl font-extrabold uppercase tracking-widest text-gray-900">University Fest</h2>
-              <h3 className="text-xl font-bold text-gray-700 mt-1">Official Purchase Indent</h3>
-              <p className="text-sm text-gray-500 mt-2">Date: {new Date().toLocaleDateString()}</p>
+          <div className="print-area bg-white text-black text-base max-w-4xl mx-auto font-serif letterhead-print-bg">
+            {/* Top Date */}
+            <div className="text-right mb-4">
+              <p>{new Date().toLocaleDateString('en-GB')}</p>
+            </div>
+
+            {/* Top Left To Address */}
+            <div className="mb-6">
+              <p>To</p>
+              <p>Purchase Office</p>
+              <p>VIT</p>
+            </div>
+
+            {/* Subject Line */}
+            <div className="text-center font-bold mb-6">
+              <p>Sub.: Request to purchase the items for GraVITas’26 – reg.</p>
+            </div>
+
+            {/* Salutation & Body */}
+            <div className="mb-8">
+              <p>Dear sir,</p>
+              <p className="mt-2 indent-8">
+                Herewith I have mentioned the items which is urgently need for GraVITas’26. Kindly approve and issue the following items.
+              </p>
             </div>
 
             {/* Render Categories */}
-            <div className="space-y-8">
+            <div className="space-y-10">
               {Object.entries(compiledData).map(([category, items]) => {
                 if (items.length === 0) return null;
                 
                 const isAmazon = category === 'AmazonItems';
                 return (
                   <div key={category} className="break-inside-avoid">
-                    <h4 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2 mb-4">
+                    <h4 className="text-lg font-bold underline mb-3">
                       {isAmazon ? 'Amazon Online Orders' : category}
                     </h4>
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse border border-black">
                       <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-gray-300 px-4 py-2 font-bold w-16 text-center">S.No</th>
-                          <th className="border border-gray-300 px-4 py-2 font-bold">Item Name</th>
-                          <th className="border border-gray-300 px-4 py-2 font-bold w-32 text-center">Quantity</th>
-                          {isAmazon && <th className="border border-gray-300 px-4 py-2 font-bold">Amazon Link</th>}
+                        <tr>
+                          <th className="border border-black px-3 py-2 font-bold w-16 text-center">Sr No</th>
+                          <th className="border border-black px-3 py-2 font-bold">Items</th>
+                          <th className="border border-black px-3 py-2 font-bold w-24 text-center">Qty</th>
                         </tr>
                       </thead>
                       <tbody>
                         {items.map((item, idx) => (
-                          <tr key={idx} className="border-b border-gray-200">
-                            <td className="border border-gray-300 px-4 py-2 text-center text-sm">{idx + 1}</td>
-                            <td className="border border-gray-300 px-4 py-2 font-medium">{item.name}</td>
-                            <td className="border border-gray-300 px-4 py-2 text-center">{item.quantity}</td>
-                            {isAmazon && (
-                              <td className="border border-gray-300 px-4 py-2 text-sm text-blue-600 max-w-xs truncate">
-                                <a href={item.amazonLink} target="_blank" rel="noreferrer">{item.amazonLink}</a>
-                              </td>
-                            )}
+                          <tr key={idx}>
+                            <td className="border border-black px-3 py-2 text-center">{idx + 1}</td>
+                            <td className="border border-black px-3 py-2">
+                              {item.name}
+                              {isAmazon && item.amazonLink && (
+                                <div className="text-sm text-blue-600 mt-1 break-all">
+                                  Link: <a href={item.amazonLink} target="_blank" rel="noreferrer" className="underline">{item.amazonLink}</a>
+                                </div>
+                              )}
+                            </td>
+                            <td className="border border-black px-3 py-2 text-center">{item.quantity}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -129,15 +152,15 @@ export default function CompilationDashboard() {
             </div>
 
             {/* Signature Blocks */}
-            <div className="mt-24 pt-8 flex justify-between items-end border-t border-dashed border-gray-400 break-inside-avoid">
-              <div className="text-center w-48">
-                <div className="border-t border-gray-800 pt-2 font-bold">Convener</div>
+            <div className="mt-32 pt-8 flex justify-between items-end break-inside-avoid">
+              <div className="text-center w-48 font-bold">
+                Faculty Organiser (Purchase)
               </div>
-              <div className="text-center w-48">
-                <div className="border-t border-gray-800 pt-2 font-bold">Co-Convener</div>
+              <div className="text-center w-48 font-bold">
+                Co-Convenor (Purchase)
               </div>
-              <div className="text-center w-48">
-                <div className="border-t border-gray-800 pt-2 font-bold">Faculty Organizer</div>
+              <div className="text-center w-48 font-bold">
+                Convenor
               </div>
             </div>
           </div>
