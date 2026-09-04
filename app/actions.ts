@@ -87,16 +87,22 @@ export async function compileData(payloads: CompilePayload[]) {
 
       if (payload.type === 'url') {
         const url = payload.content;
-        const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-        if (!match) {
-          errors.push(`Invalid Google Sheet URL format: ${url}`);
-          continue;
+        let exportUrl = url;
+        
+        // Convert any Google Sheets URL to direct CSV export URL
+        if (url.includes('/edit')) {
+          exportUrl = url.replace(/\/edit.*/, '/export?format=csv');
+        } else {
+          const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+          if (!match) {
+            errors.push(`Invalid Google Sheet URL format: ${url}`);
+            continue;
+          }
+          const sheetId = match[1];
+          exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
         }
         
-        const sheetId = match[1];
-        const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-        
-        const res = await fetch(exportUrl);
+        const res = await fetch(exportUrl, { redirect: 'follow' });
         if (!res.ok) {
           errors.push(`Failed to fetch sheet (Access Denied or Not Found). Ensure it is set to "Anyone with the link can view": ${url}`);
           continue;

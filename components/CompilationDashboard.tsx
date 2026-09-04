@@ -177,31 +177,16 @@ export default function CompilationDashboard() {
             style={{
               width: '210mm',
               minHeight: '297mm',
+              backgroundImage: "url('/indentbackground.png')",
+              backgroundSize: '100% 100%',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              WebkitPrintColorAdjust: 'exact',
+              printColorAdjust: 'exact',
               boxSizing: 'border-box'
             }}
           >
             
-            {/* Screen Repeating Background (Visible only on monitor) */}
-            <div 
-              className="absolute top-0 left-0 w-full h-full -z-10 print:hidden"
-              style={{
-                backgroundImage: "url('/indentbackground.png')",
-                backgroundSize: '210mm 297mm',
-                backgroundRepeat: 'repeat-y',
-              }}
-            ></div>
-
-            {/* Print Fixed Background (Repeats on every printed page perfectly in Chrome) */}
-            <div 
-              className="fixed top-0 left-0 w-[210mm] h-[297mm] -z-10 hidden print:block"
-            >
-              <img 
-                src="/indentbackground.png" 
-                className="w-full h-full" 
-                style={{ objectFit: '100% 100%', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} 
-              />
-            </div>
-
             {/* Content padding boundaries */}
             <div style={{ paddingLeft: '25mm', paddingRight: '25mm' }}>
               <table className="w-full border-none">
