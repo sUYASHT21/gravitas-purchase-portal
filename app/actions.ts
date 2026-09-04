@@ -73,22 +73,52 @@ export async function compileSheets(urls: string[]) {
     Electricals: [] as any[],
     AmazonItems: [] as any[]
   };
+  const errors: string[] = [];
 
   for (const url of urls) {
     try {
       const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-      if (!match) continue;
+      if (!match) {
+        errors.push(`Invalid Google Sheet URL format: ${url}`);
+        continue;
+      }
       
       const sheetId = match[1];
       const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
       
       const res = await fetch(exportUrl);
-      if (!res.ok) continue;
+      if (!res.ok) {
+        errors.push(`Failed to fetch sheet (Access Denied or Not Found). Ensure it is set to "Anyone with the link can view": ${url}`);
+        continue;
+      }
       
       const csvText = await res.text();
+      // If the response is HTML, it usually means a login redirect or error page.
+      if (csvText.trim().toLowerCase().startsWith('<!doctype html>')) {
+        errors.push(`Sheet is not public. Please change permissions to "Anyone with the link can view": ${url}`);
+        continue;
+      }
+
       const workbook = XLSX.read(csvText, { type: 'string' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const data: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (data.length === 0) {
+        errors.push(`Sheet is empty: ${url}`);
+        continue;
+      }
+
+      // Strict header validation
+      const firstRow = data[0];
+      const headers = Object.keys(firstRow).map(k => k.toLowerCase());
+      const hasItems = headers.some(h => h.includes('item'));
+      const hasQty = headers.some(h => h.includes('qty') || h.includes('quantity'));
+      const hasCategory = headers.some(h => h.includes('category') || h.includes('type'));
+      
+      if (!hasItems || !hasQty || !hasCategory) {
+        errors.push(`Missing required headers (Items | Qty | Category) in sheet: ${url}`);
+        continue;
+      }
 
       for (const row of data) {
         const getVal = (search: string) => {
@@ -96,10 +126,10 @@ export async function compileSheets(urls: string[]) {
           return key ? String(row[key]).trim() : '';
         };
 
-        const name = getVal('name') || getVal('item');
-        const quantity = getVal('quantity') || getVal('qty');
-        const amazonLink = getVal('amazon') || getVal('link') || getVal('url');
-        const category = getVal('category') || getVal('type');
+        const name = getVal('item');
+        const quantity = getVal('qty') || getVal('quantity');
+        const amazonLink = getVal('amazon');
+        const category = getVal('category');
 
         if (!name) continue;
         const item = { name, quantity, amazonLink };
@@ -115,13 +145,12 @@ export async function compileSheets(urls: string[]) {
         else if (catLower.includes('chemical') || catLower.includes('liquid')) categories.Chemicals.push(item);
         else if (catLower.includes('electrical') || catLower.includes('wire') || catLower.includes('cable')) categories.Electricals.push(item);
         else {
-          // Default fallback to stationery if unknown, or maybe skip? The prompt asks for strict separation into these 4.
-          // Let's assume they are categorized correctly by users, fallback to Stationery.
-          categories.Stationery.push(item);
+          categories.Stationery.push(item); // Fallback
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error fetching sheet', url, e);
+      errors.push(`Unexpected error processing sheet: ${url} (${e.message})`);
     }
   }
 
@@ -132,5 +161,5 @@ export async function compileSheets(urls: string[]) {
   categories.Electricals.sort(sortFn);
   categories.AmazonItems.sort(sortFn);
 
-  return categories;
+  return { categories, errors };
 }
