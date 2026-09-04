@@ -43,7 +43,7 @@ body {
 }
 
 .letterhead-print-bg {
-  background-image: url('/letterhead-bg.png') !important;
+  background-image: url('/indentbackground.png') !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
