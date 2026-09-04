@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { InventoryItem } from '@/app/actions';
 import InventoryItemCard from './InventoryItemCard';
 import UploadExcel from './UploadExcel';
-import { Search, Package, AlertCircle } from 'lucide-react';
+import { Search, Package, AlertCircle, Info } from 'lucide-react';
 
 export default function InventoryDashboard({ initialItems }: { initialItems: InventoryItem[] }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,7 +32,16 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
     <div className="space-y-8">
       {/* Top Stats & Actions Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex flex-col space-y-4">
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg flex items-start">
+            <Info className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-blue-900 font-bold text-sm">Required CSV/Excel Format</h4>
+              <p className="text-blue-800 text-sm mt-1">
+                Your file must have these exact column headers: <strong>Name | Category | Quantity</strong>
+              </p>
+            </div>
+          </div>
           <UploadExcel />
         </div>
         

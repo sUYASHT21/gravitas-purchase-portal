@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Loader2, FileSpreadsheet, Printer } from 'lucide-react';
+import { Loader2, FileSpreadsheet, Printer, AlertCircle, Info } from 'lucide-react';
 import { compileSheets } from '@/app/actions';
 
 export type CompiledItem = {
@@ -22,19 +22,22 @@ export default function CompilationDashboard() {
   const [links, setLinks] = useState('');
   const [isCompiling, setIsCompiling] = useState(false);
   const [compiledData, setCompiledData] = useState<CategorizedIndent | null>(null);
+  const [compileErrors, setCompileErrors] = useState<string[]>([]);
 
   const handleCompile = async () => {
     if (!links.trim()) return;
     
     setIsCompiling(true);
+    setCompileErrors([]);
     const urls = links.split('\n').filter(l => l.trim().length > 0);
     
     try {
-      const data = await compileSheets(urls);
-      setCompiledData(data);
+      const result = await compileSheets(urls);
+      setCompiledData(result.categories);
+      setCompileErrors(result.errors);
     } catch (error) {
       console.error(error);
-      alert('Failed to compile sheets. Ensure they are public and valid Google Sheet URLs.');
+      setCompileErrors(['A fatal error occurred while compiling sheets.']);
     } finally {
       setIsCompiling(false);
     }
@@ -47,12 +50,22 @@ export default function CompilationDashboard() {
         <a href="/" className="text-purple-600 font-bold hover:underline">← Back to Dashboard</a>
       </div>
 
-      <div className="print:hidden bg-white/70 backdrop-blur-lg p-6 rounded-3xl border border-white/40 shadow-xl shadow-purple-900/5">
+      <div className="print:hidden bg-white/70 backdrop-blur-lg p-6 md:p-8 rounded-3xl border border-white/40 shadow-xl shadow-purple-900/5">
+        <div className="mb-6 bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-lg flex items-start">
+          <Info className="w-6 h-6 text-purple-600 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-purple-900 font-bold text-sm">Required Google Sheet Format</h4>
+            <p className="text-purple-800 text-sm mt-1">
+              Sheets must be set to <strong>"Anyone with the link can view"</strong> and have these exact column headers: <strong>Items | Qty | Category | Amazon Links</strong>
+            </p>
+          </div>
+        </div>
+
         <label className="block text-sm font-bold text-gray-700 mb-2">
           Paste Google Sheet Links (One per line)
         </label>
         <textarea
-          className="w-full h-40 p-4 border-none rounded-xl bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm font-mono"
+          className="w-full h-40 p-4 border border-gray-200 rounded-xl bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm font-mono text-gray-900 placeholder-gray-400"
           placeholder="https://docs.google.com/spreadsheets/d/..."
           value={links}
           onChange={(e) => setLinks(e.target.value)}
@@ -72,19 +85,34 @@ export default function CompilationDashboard() {
         </div>
       </div>
 
+      {compileErrors.length > 0 && (
+        <div className="print:hidden bg-red-50 border border-red-200 p-6 rounded-2xl shadow-sm">
+          <h3 className="text-red-800 font-bold flex items-center mb-3">
+            <AlertCircle className="w-5 h-5 mr-2" /> Compilation Errors
+          </h3>
+          <ul className="list-disc pl-5 space-y-1">
+            {compileErrors.map((err, i) => (
+              <li key={i} className="text-red-600 text-sm">{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Printable Indent Output */}
       {compiledData && (
-        <div className="bg-white p-8 md:p-12 rounded-3xl shadow-2xl print:shadow-none print:p-0">
-          <div className="print:hidden flex justify-end mb-6">
+        <div className="w-full overflow-x-auto pb-8 print:overflow-visible print:pb-0">
+          <div className="print:hidden flex justify-end mb-6 max-w-4xl mx-auto">
             <button 
               onClick={() => window.print()}
-              className="flex items-center px-4 py-2 bg-gray-900 text-white text-sm font-bold rounded-lg hover:bg-gray-800 transition-colors"
+              className="flex items-center px-6 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg"
             >
               <Printer className="w-4 h-4 mr-2" /> Print Indent
             </button>
           </div>
 
-          <div className="print-area bg-white text-black text-base max-w-4xl mx-auto font-serif letterhead-print-bg">
+          {/* Strict A4 Container with Background */}
+          <div className="shadow-2xl print:shadow-none letterhead-print-bg text-black text-base font-serif bg-white relative">
+            
             {/* Top Date */}
             <div className="text-right mb-4">
               <p>{new Date().toLocaleDateString('en-GB')}</p>
@@ -121,12 +149,12 @@ export default function CompilationDashboard() {
                     <h4 className="text-lg font-bold underline mb-3">
                       {isAmazon ? 'Amazon Online Orders' : category}
                     </h4>
-                    <table className="w-full text-left border-collapse border border-black">
+                    <table className="w-full text-left border-collapse border border-black bg-white/50">
                       <thead>
                         <tr>
-                          <th className="border border-black px-3 py-2 font-bold w-16 text-center">Sr No</th>
-                          <th className="border border-black px-3 py-2 font-bold">Items</th>
-                          <th className="border border-black px-3 py-2 font-bold w-24 text-center">Qty</th>
+                          <th className="border border-black px-3 py-2 font-bold w-16 text-center bg-gray-100/80">Sr No</th>
+                          <th className="border border-black px-3 py-2 font-bold bg-gray-100/80">Items</th>
+                          <th className="border border-black px-3 py-2 font-bold w-24 text-center bg-gray-100/80">Qty</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -136,8 +164,8 @@ export default function CompilationDashboard() {
                             <td className="border border-black px-3 py-2">
                               {item.name}
                               {isAmazon && item.amazonLink && (
-                                <div className="text-sm text-blue-600 mt-1 break-all">
-                                  Link: <a href={item.amazonLink} target="_blank" rel="noreferrer" className="underline">{item.amazonLink}</a>
+                                <div className="text-sm text-blue-800 mt-1 break-all">
+                                  Link: <a href={item.amazonLink} target="_blank" rel="noreferrer" className="underline font-sans">{item.amazonLink}</a>
                                 </div>
                               )}
                             </td>
@@ -152,7 +180,7 @@ export default function CompilationDashboard() {
             </div>
 
             {/* Signature Blocks */}
-            <div className="mt-32 pt-8 flex justify-between items-end break-inside-avoid">
+            <div className="mt-32 pt-8 flex justify-between items-end break-inside-avoid relative z-10">
               <div className="text-center w-48 font-bold">
                 Faculty Organiser (Purchase)
               </div>
