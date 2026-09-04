@@ -25,24 +25,30 @@ export default function CompilationDashboard() {
   const [compileErrors, setCompileErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCompile = async () => {
+  const handleCompileLinks = async () => {
     if (!links.trim()) return;
-    
     setIsCompiling(true);
     setCompileErrors([]);
 
     const payloads: CompilePayload[] = [];
+    const urls = links.split('\n').filter(l => l.trim().length > 0);
+    urls.forEach(url => {
+      payloads.push({ type: 'url', content: url.trim(), sourceName: url.trim() });
+    });
     
-    // If the input doesn't start with HTTP, assume it's raw CSV data pasted.
-    if (!links.trim().startsWith('http')) {
-      payloads.push({ type: 'raw', content: links, sourceName: 'Pasted CSV Data' });
-    } else {
-      const urls = links.split('\n').filter(l => l.trim().length > 0);
-      urls.forEach(url => {
-        payloads.push({ type: 'url', content: url, sourceName: url });
-      });
-    }
-    
+    await executeCompile(payloads);
+  };
+
+  const handleCompileRawText = async () => {
+    if (!links.trim()) return;
+    setIsCompiling(true);
+    setCompileErrors([]);
+
+    const payloads: CompilePayload[] = [{ type: 'raw', content: links, sourceName: 'Pasted CSV Data' }];
+    await executeCompile(payloads);
+  };
+
+  const executeCompile = async (payloads: CompilePayload[]) => {
     try {
       const result = await compileData(payloads);
       setCompiledData(result.categories);
@@ -82,18 +88,8 @@ export default function CompilationDashboard() {
     });
 
     await Promise.all(readPromises);
-
-    try {
-      const result = await compileData(payloads);
-      setCompiledData(result.categories);
-      setCompileErrors(result.errors);
-    } catch (error) {
-      console.error(error);
-      setCompileErrors(['A fatal error occurred while processing the files.']);
-    } finally {
-      setIsCompiling(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+    await executeCompile(payloads);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -124,7 +120,7 @@ export default function CompilationDashboard() {
           onChange={(e) => setLinks(e.target.value)}
         />
         
-        <div className="mt-4 flex flex-col md:flex-row justify-end items-center gap-4">
+        <div className="mt-6 flex flex-col md:flex-row justify-end items-center gap-4">
           <input 
             type="file" 
             accept=".csv, .xlsx, .xls"
@@ -136,20 +132,28 @@ export default function CompilationDashboard() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isCompiling}
-            className="flex items-center px-6 py-3 bg-white border border-purple-200 text-purple-700 font-bold rounded-xl shadow-sm hover:bg-purple-50 transition-all disabled:opacity-50"
+            className="flex items-center px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50 w-full md:w-auto justify-center"
           >
-            <Upload className="w-5 h-5 mr-2" /> Upload CSV/Excel
+            <Upload className="w-5 h-5 mr-2" /> Upload Files
           </button>
-          <span className="text-gray-400 font-bold text-sm hidden md:inline">OR</span>
+          
           <button
-            onClick={handleCompile}
+            onClick={handleCompileRawText}
             disabled={isCompiling || !links.trim()}
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-md shadow-pink-200 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+            className="flex items-center px-6 py-3 bg-white border border-purple-200 text-purple-700 font-bold rounded-xl shadow-sm hover:bg-purple-50 transition-all disabled:opacity-50 w-full md:w-auto justify-center"
+          >
+            <FileSpreadsheet className="w-5 h-5 mr-2" /> Compile Raw Text
+          </button>
+
+          <button
+            onClick={handleCompileLinks}
+            disabled={isCompiling || !links.trim()}
+            className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-md shadow-pink-200 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 w-full md:w-auto justify-center"
           >
             {isCompiling ? (
-              <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processing...</>
+              <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Fetching...</>
             ) : (
-              <><FileSpreadsheet className="w-5 h-5 mr-2" /> Compile from Text</>
+              <><FileSpreadsheet className="w-5 h-5 mr-2" /> Fetch & Compile Links</>
             )}
           </button>
         </div>
