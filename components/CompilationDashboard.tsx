@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Loader2, FileSpreadsheet, Printer, AlertCircle, Info } from 'lucide-react';
-import { compileSheets } from '@/app/actions';
+import React, { useState, useRef } from 'react';
+import { Loader2, FileSpreadsheet, Printer, AlertCircle, Info, Upload } from 'lucide-react';
+import { compileData, CompilePayload } from '@/app/actions';
 
 export type CompiledItem = {
   name: string;
@@ -23,24 +23,69 @@ export default function CompilationDashboard() {
   const [isCompiling, setIsCompiling] = useState(false);
   const [compiledData, setCompiledData] = useState<CategorizedIndent | null>(null);
   const [compileErrors, setCompileErrors] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCompile = async () => {
     if (!links.trim()) return;
     
     setIsCompiling(true);
     setCompileErrors([]);
-    const urls = links.split('\n').filter(l => l.trim().length > 0);
+
+    const payloads: CompilePayload[] = [];
+    
+    // If the input doesn't start with HTTP, assume it's raw CSV data pasted.
+    if (!links.trim().startsWith('http')) {
+      payloads.push({ type: 'raw', content: links, sourceName: 'Pasted CSV Data' });
+    } else {
+      const urls = links.split('\n').filter(l => l.trim().length > 0);
+      urls.forEach(url => {
+        payloads.push({ type: 'url', content: url, sourceName: url });
+      });
+    }
     
     try {
-      const result = await compileSheets(urls);
+      const result = await compileData(payloads);
       setCompiledData(result.categories);
       setCompileErrors(result.errors);
     } catch (error) {
       console.error(error);
-      setCompileErrors(['A fatal error occurred while compiling sheets.']);
+      setCompileErrors(['A fatal error occurred while compiling data.']);
     } finally {
       setIsCompiling(false);
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsCompiling(true);
+    setCompileErrors([]);
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const content = evt.target?.result as string;
+      const b64 = content.split(',')[1] || content;
+      
+      const payload: CompilePayload = {
+        type: 'base64',
+        content: b64,
+        sourceName: file.name
+      };
+
+      try {
+        const result = await compileData([payload]);
+        setCompiledData(result.categories);
+        setCompileErrors(result.errors);
+      } catch (error) {
+        console.error(error);
+        setCompileErrors(['A fatal error occurred while processing the file.']);
+      } finally {
+        setIsCompiling(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -54,32 +99,48 @@ export default function CompilationDashboard() {
         <div className="mb-6 bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-lg flex items-start">
           <Info className="w-6 h-6 text-purple-600 mr-3 flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-purple-900 font-bold text-sm">Required Google Sheet Format</h4>
+            <h4 className="text-purple-900 font-bold text-sm">Required Format</h4>
             <p className="text-purple-800 text-sm mt-1">
-              Sheets must be set to <strong>"Anyone with the link can view"</strong> and must include these exact column headers: <strong>SR NO | Item | Quantity | (Optional: Amazon Links)</strong>
+              For links, sheets must be set to <strong>"Anyone with the link can view"</strong>. You can also paste raw CSV data or upload a file directly. Must include these exact column headers: <strong>SR NO | Item | Quantity | (Optional: Amazon Links)</strong>
             </p>
           </div>
         </div>
 
         <label className="block text-sm font-bold text-gray-700 mb-2">
-          Paste Google Sheet Links (One per line)
+          Paste Google Sheet Links OR Raw CSV Data
         </label>
         <textarea
           className="w-full h-40 p-4 border border-gray-200 rounded-xl bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm font-mono text-gray-900 placeholder-gray-400"
-          placeholder="https://docs.google.com/spreadsheets/d/..."
+          placeholder="https://docs.google.com/spreadsheets/d/... OR paste raw CSV here"
           value={links}
           onChange={(e) => setLinks(e.target.value)}
         />
-        <div className="mt-4 flex justify-end">
+        
+        <div className="mt-4 flex flex-col md:flex-row justify-end items-center gap-4">
+          <input 
+            type="file" 
+            accept=".csv, .xlsx, .xls"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isCompiling}
+            className="flex items-center px-6 py-3 bg-white border border-purple-200 text-purple-700 font-bold rounded-xl shadow-sm hover:bg-purple-50 transition-all disabled:opacity-50"
+          >
+            <Upload className="w-5 h-5 mr-2" /> Upload CSV/Excel
+          </button>
+          <span className="text-gray-400 font-bold text-sm hidden md:inline">OR</span>
           <button
             onClick={handleCompile}
             disabled={isCompiling || !links.trim()}
             className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-md shadow-pink-200 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             {isCompiling ? (
-              <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Compiling...</>
+              <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processing...</>
             ) : (
-              <><FileSpreadsheet className="w-5 h-5 mr-2" /> Compile Requirements</>
+              <><FileSpreadsheet className="w-5 h-5 mr-2" /> Compile from Text</>
             )}
           </button>
         </div>

@@ -65,7 +65,13 @@ export async function importExcelData(data: { name: string, category: string, qu
   revalidatePath('/');
 }
 
-export async function compileSheets(urls: string[]) {
+export type CompilePayload = {
+  type: 'url' | 'raw' | 'base64';
+  content: string;
+  sourceName: string;
+};
+
+export async function compileData(payloads: CompilePayload[]) {
   const categories = {
     Stationery: [] as any[],
     Culinary: [] as any[],
@@ -75,60 +81,71 @@ export async function compileSheets(urls: string[]) {
   };
   const errors: string[] = [];
 
-  for (const url of urls) {
+  for (const payload of payloads) {
     try {
-      const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-      if (!match) {
-        errors.push(`Invalid Google Sheet URL format: ${url}`);
-        continue;
-      }
-      
-      const sheetId = match[1];
-      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-      
-      const res = await fetch(exportUrl);
-      if (!res.ok) {
-        errors.push(`Failed to fetch sheet (Access Denied or Not Found). Ensure it is set to "Anyone with the link can view": ${url}`);
-        continue;
-      }
-      
-      const csvText = await res.text();
-      // If the response is HTML, it usually means a login redirect or error page.
-      if (csvText.trim().toLowerCase().startsWith('<!doctype html>')) {
-        errors.push(`Sheet is not public. Please change permissions to "Anyone with the link can view": ${url}`);
-        continue;
+      let fileData: any[] = [];
+
+      if (payload.type === 'url') {
+        const url = payload.content;
+        const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (!match) {
+          errors.push(`Invalid Google Sheet URL format: ${url}`);
+          continue;
+        }
+        
+        const sheetId = match[1];
+        const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+        
+        const res = await fetch(exportUrl);
+        if (!res.ok) {
+          errors.push(`Failed to fetch sheet (Access Denied or Not Found). Ensure it is set to "Anyone with the link can view": ${url}`);
+          continue;
+        }
+        
+        const csvText = await res.text();
+        if (csvText.trim().toLowerCase().startsWith('<!doctype html>')) {
+          errors.push(`Sheet is not public. Please change permissions to "Anyone with the link can view": ${url}`);
+          continue;
+        }
+
+        const workbook = XLSX.read(csvText, { type: 'string' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        fileData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      } else {
+        const workbook = XLSX.read(payload.content, { type: payload.type === 'base64' ? 'base64' : 'string' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        fileData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
       }
 
-      const workbook = XLSX.read(csvText, { type: 'string' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-      if (data.length === 0) {
-        errors.push(`Sheet is empty: ${url}`);
+      if (fileData.length === 0) {
+        errors.push(`Source is empty: ${payload.sourceName}`);
         continue;
       }
 
       // Flexible header validation
-      const firstRow = data[0];
+      const firstRow = fileData[0];
       const headers = Object.keys(firstRow).map(k => k.toLowerCase());
-      const hasItems = headers.some(h => h.includes('item'));
-      const hasQty = headers.some(h => h.includes('qty') || h.includes('quantity'));
+      const hasItems = headers.some(h => h.includes('item') || h.includes('name'));
+      const hasQty = headers.some(h => h.includes('qty') || h.includes('quantity') || h.includes('count'));
       
       if (!hasItems || !hasQty) {
-        errors.push(`Missing required headers (Item | Quantity) in sheet: ${url}`);
+        errors.push(`Missing required headers (Item | Quantity) in source: ${payload.sourceName}`);
         continue;
       }
 
-      for (const row of data) {
-        const getVal = (search: string) => {
-          const key = Object.keys(row).find(k => k.toLowerCase().includes(search));
-          return key ? String(row[key]).trim() : '';
+      for (const row of fileData) {
+        const getVal = (searchItems: string[]) => {
+          for (const s of searchItems) {
+            const key = Object.keys(row).find(k => k.toLowerCase().includes(s));
+            if (key) return String(row[key]).trim();
+          }
+          return '';
         };
 
-        const name = getVal('item');
-        const quantity = getVal('qty') || getVal('quantity');
-        const amazonLink = getVal('amazon');
-        const category = getVal('category') || '';
+        const name = getVal(['item', 'name', 'description']);
+        const quantity = getVal(['qty', 'quantity', 'count', 'amount']);
+        const amazonLink = getVal(['amazon', 'link', 'url']);
+        const category = getVal(['category', 'type', 'dept']) || '';
 
         if (!name) continue;
         const item = { name, quantity, amazonLink };
@@ -147,8 +164,8 @@ export async function compileSheets(urls: string[]) {
         }
       }
     } catch (e: any) {
-      console.error('Error fetching sheet', url, e);
-      errors.push(`Unexpected error processing sheet: ${url} (${e.message})`);
+      console.error('Error processing source', payload.sourceName, e);
+      errors.push(`Unexpected error processing ${payload.sourceName} (${e.message})`);
     }
   }
 
