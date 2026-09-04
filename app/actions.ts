@@ -3,9 +3,35 @@
 import dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first');
 
+import https from 'node:https';
 import { getDb } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import * as XLSX from 'xlsx';
+
+function fetchCsvIPv4(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const request = (targetUrl: string, redirects = 0) => {
+      if (redirects > 5) return reject(new Error('Too many redirects'));
+      
+      const req = https.get(targetUrl, { family: 4 }, (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return request(res.headers.location, redirects + 1);
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => resolve(data));
+      });
+      
+      req.on('error', (err) => reject(err));
+      req.end();
+    };
+    
+    request(url);
+  });
+}
 
 export interface InventoryItem {
   id: number;
@@ -103,14 +129,10 @@ export async function compileData(payloads: CompilePayload[]) {
         const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
         
         try {
-          console.log(">>> EXACT URL BEING FETCHED:", exportUrl);
-          const res = await fetch(exportUrl, { redirect: 'follow' });
-          if (!res.ok) {
-            errors.push(`Failed to read Sheet. Ensure access is set to 'Anyone with the link'. (${exportUrl})`);
-            continue;
-          }
+          console.log(">>> EXACT URL BEING FETCHED VIA NATIVE IPV4 HTTPS:", exportUrl);
           
-          const csvText = await res.text();
+          const csvText = await fetchCsvIPv4(exportUrl);
+          
           if (csvText.trim().toLowerCase().startsWith('<!doctype html>') || csvText.trim().toLowerCase().startsWith('<html')) {
             errors.push(`Sheet is private. Please change access to 'Anyone with the link can view'. (${exportUrl})`);
             continue;
@@ -121,7 +143,8 @@ export async function compileData(payloads: CompilePayload[]) {
           fileData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
         } catch (fetchErr: any) {
           console.error('Fetch Error:', fetchErr);
-          errors.push(`Fetch failed for ${exportUrl}: ${fetchErr.message || fetchErr}`);
+          // Special fallback flag string to trigger client-side fetch in the frontend if needed
+          errors.push(`CLIENT_FALLBACK_REQUIRED|${exportUrl}|${fetchErr.message || fetchErr}`);
           continue;
         }
       } else {

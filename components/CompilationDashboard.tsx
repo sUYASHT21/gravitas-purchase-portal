@@ -51,6 +51,50 @@ export default function CompilationDashboard() {
   const executeCompile = async (payloads: CompilePayload[]) => {
     try {
       const result = await compileData(payloads);
+      
+      // Check for strict server-side network blocks requiring client proxy fallback
+      const fallbackErrors = result.errors.filter(e => e.startsWith('CLIENT_FALLBACK_REQUIRED|'));
+      const normalErrors = result.errors.filter(e => !e.startsWith('CLIENT_FALLBACK_REQUIRED|'));
+      
+      if (fallbackErrors.length > 0) {
+        setCompileErrors([...normalErrors, "Server network blocked. Attempting client-side proxy fallback..."]);
+        
+        const fallbackPayloads: CompilePayload[] = [];
+        for (const errStr of fallbackErrors) {
+          const [, exportUrl] = errStr.split('|');
+          try {
+            // Client-side fallback via public CORS proxy
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(exportUrl)}`;
+            const proxyRes = await fetch(proxyUrl);
+            if (!proxyRes.ok) throw new Error('Proxy fetch failed');
+            
+            const rawCsv = await proxyRes.text();
+            if (rawCsv.trim().toLowerCase().startsWith('<html') || rawCsv.trim().toLowerCase().startsWith('<!doctype')) {
+              normalErrors.push(`Sheet is private. Please change access to 'Anyone with the link can view'. (${exportUrl})`);
+              continue;
+            }
+            
+            fallbackPayloads.push({ type: 'raw', content: rawCsv, sourceName: exportUrl });
+          } catch (e: any) {
+             normalErrors.push(`Client proxy fallback also failed for ${exportUrl}: ${e.message}`);
+          }
+        }
+        
+        if (fallbackPayloads.length > 0) {
+           // Resubmit both the originally successful (raw/base64) payloads and the new proxy-fetched raw payloads together
+           const successfulOriginals = payloads.filter(p => !fallbackErrors.some(err => err.includes(p.content)));
+           const retryResult = await compileData([...successfulOriginals, ...fallbackPayloads]);
+           setCompiledData(retryResult.categories);
+           setCompileErrors([...normalErrors, ...retryResult.errors]);
+           return;
+        }
+        
+        // If all fallbacks failed, just show the normal errors
+        setCompiledData(result.categories);
+        setCompileErrors(normalErrors);
+        return;
+      }
+
       setCompiledData(result.categories);
       setCompileErrors(result.errors);
     } catch (error) {
