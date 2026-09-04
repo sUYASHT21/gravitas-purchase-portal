@@ -84,11 +84,12 @@ export async function compileData(payloads: CompilePayload[]) {
   for (const payload of payloads) {
     try {
       let fileData: any[] = [];
+      let workbook: XLSX.WorkBook;
 
       if (payload.type === 'url') {
         const url = payload.content;
         
-        // Strict SHEET_ID extraction as requested
+        // Strict SHEET_ID extraction exactly as requested, ignoring queries and /edit
         const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
         if (!match) {
           errors.push(`Invalid Google Sheet URL format: ${url}`);
@@ -98,21 +99,27 @@ export async function compileData(payloads: CompilePayload[]) {
         const sheetId = match[1];
         const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
         
-        const res = await fetch(exportUrl, { redirect: 'follow' });
-        if (!res.ok) {
-          errors.push(`Failed to read Sheet. Ensure access is set to 'Anyone with the link'. (${url})`);
+        try {
+          const res = await fetch(exportUrl, { redirect: 'follow' });
+          if (!res.ok) {
+            errors.push(`Failed to read Sheet. Ensure access is set to 'Anyone with the link'. (${url})`);
+            continue;
+          }
+          
+          const csvText = await res.text();
+          if (csvText.trim().toLowerCase().startsWith('<!doctype html>') || csvText.trim().toLowerCase().startsWith('<html')) {
+            errors.push(`Sheet is private. Please change access to 'Anyone with the link can view'. (${url})`);
+            continue;
+          }
+  
+          workbook = XLSX.read(csvText, { type: 'string' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          fileData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        } catch (fetchErr) {
+          console.error(fetchErr);
+          errors.push(`Network error fetching Sheet. Ensure access is set to 'Anyone with the link'. (${url})`);
           continue;
         }
-        
-        const csvText = await res.text();
-        if (csvText.trim().toLowerCase().startsWith('<!doctype html>')) {
-          errors.push(`Sheet is not public. Please change permissions to "Anyone with the link can view": ${url}`);
-          continue;
-        }
-
-        const workbook = XLSX.read(csvText, { type: 'string' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        fileData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
       } else {
         const workbook = XLSX.read(payload.content, { type: payload.type === 'base64' ? 'base64' : 'string' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
