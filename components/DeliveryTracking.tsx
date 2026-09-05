@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Briefcase, Plus, Upload, CheckCircle, ArrowLeft, Package, Check, X, ShieldAlert } from 'lucide-react';
+import { Calendar, Briefcase, Plus, Upload, CheckCircle, ArrowLeft, Package, Check, X, ShieldAlert, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabaseClient';
 
 // ----- Types -----
 type ItemState = {
@@ -52,6 +53,7 @@ export default function DeliveryTracking() {
   const [activeDomainId, setActiveDomainId] = useState<string | null>(null);
   
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const [newDomainName, setNewDomainName] = useState('');
   const [newOrganizer, setNewOrganizer] = useState('');
@@ -61,58 +63,121 @@ export default function DeliveryTracking() {
   const [deliveryQuantity, setDeliveryQuantity] = useState<number | ''>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('gravitas-delivery-domains');
-    if (saved) {
-      try {
-        setDomains(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse domains', e);
-      }
+  const fetchDomains = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('domains').select('*');
+    setIsLoading(false);
+    if (error) {
+      console.error(error);
+      showToast('Failed to fetch domains', 'error');
+      return;
     }
-  }, []);
+    const newDomains: Record<string, Domain> = {};
+    for (const d of data) {
+      newDomains[d.id] = { ...d, items: {} };
+    }
+    setDomains(newDomains);
+  };
 
   useEffect(() => {
-    localStorage.setItem('gravitas-delivery-domains', JSON.stringify(domains));
-  }, [domains]);
+    fetchDomains();
+  }, []);
+
+  const fetchDomainRequirements = async (domainId: string) => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('domain_requirements').select('*').eq('domain_id', domainId);
+    setIsLoading(false);
+    
+    if (error) {
+      console.error(error);
+      showToast('Failed to fetch requirements', 'error');
+      return;
+    }
+
+    setDomains(prev => {
+      const next = { ...prev };
+      if (!next[domainId]) return prev;
+      
+      const domain = { ...next[domainId] };
+      const items: Record<string, ItemState> = {};
+      
+      data.forEach(req => {
+        const norm = req.normalized_name;
+        if (!items[norm]) {
+          items[norm] = {
+            originalName: req.original_name,
+            normalizedName: norm,
+            undeliveredQty: 0,
+            deliveredQty: 0
+          };
+        }
+        if (req.status === 'Undelivered') {
+          items[norm].undeliveredQty += req.quantity;
+        } else if (req.status === 'Delivered') {
+          items[norm].deliveredQty += req.quantity;
+        }
+      });
+      
+      domain.items = items;
+      next[domainId] = domain;
+      return next;
+    });
+  };
+
+  // Watch for activeDomainId changes
+  useEffect(() => {
+    if (activeDomainId) {
+      fetchDomainRequirements(activeDomainId);
+    }
+  }, [activeDomainId]);
 
   const showToast = (message: string, type: 'error' | 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleAddDomain = (e: React.FormEvent) => {
+  const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDomainName.trim()) return;
 
-    const exists = Object.values(domains).some(d => d.name.toLowerCase() === newDomainName.trim().toLowerCase());
-    if (exists) {
-      showToast('Domain already exists!', 'error');
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('domains')
+      .insert([{ 
+        name: newDomainName.trim(),
+        organizer: newOrganizer.trim(),
+        contact: newContact.trim()
+      }])
+      .select();
+    
+    setIsLoading(false);
+
+    if (error) {
+      console.error(error);
+      if (error.code === '23505') {
+        showToast('Domain already exists!', 'error');
+      } else {
+        showToast('Failed to add domain', 'error');
+      }
       return;
     }
 
-    const id = Date.now().toString();
-    const newDomain: Domain = {
-      id,
-      name: newDomainName.trim(),
-      organizer: newOrganizer.trim(),
-      contact: newContact.trim(),
-      items: {}
-    };
-
-    setDomains(prev => ({ ...prev, [id]: newDomain }));
-    setNewDomainName('');
-    setNewOrganizer('');
-    setNewContact('');
-    showToast('Domain added successfully!', 'success');
+    if (data && data[0]) {
+      const newDomain: Domain = { ...data[0], items: {} };
+      setDomains(prev => ({ ...prev, [data[0].id]: newDomain }));
+      setNewDomainName('');
+      setNewOrganizer('');
+      setNewContact('');
+      showToast('Domain added successfully!', 'success');
+    }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeDomainId) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const data = new Uint8Array(evt.target?.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -122,93 +187,180 @@ export default function DeliveryTracking() {
         showToast('Uploaded file is empty.', 'error');
         return;
       }
+      
+      setIsLoading(true);
 
-      setDomains(prev => {
-        const next = { ...prev };
-        const domain = { ...next[activeDomainId] };
-        const items = { ...domain.items };
-
-        jsonData.forEach(row => {
-          const getVal = (searchItems: string[]) => {
-            for (const s of searchItems) {
-              const key = Object.keys(row).find(k => k.toLowerCase().includes(s));
-              if (key) return String(row[key]).trim();
-            }
-            return '';
-          };
-
-          const name = getVal(['item', 'name', 'description']);
-          const qtyStr = getVal(['qty', 'quantity', 'count', 'amount']);
-          
-          if (!name) return;
-          const parsedQty = parseInt(qtyStr.replace(/[^0-9]/g, ''), 10) || 1;
-          const norm = normalizeItemName(name);
-
-          if (items[norm]) {
-            items[norm] = {
-              ...items[norm],
-              undeliveredQty: items[norm].undeliveredQty + parsedQty
-            };
-          } else {
-            items[norm] = {
-              originalName: name,
-              normalizedName: norm,
-              undeliveredQty: parsedQty,
-              deliveredQty: 0
-            };
+      for (const row of jsonData) {
+        const getVal = (searchItems: string[]) => {
+          for (const s of searchItems) {
+            const key = Object.keys(row).find(k => k.toLowerCase().includes(s));
+            if (key) return String(row[key]).trim();
           }
-        });
+          return '';
+        };
 
-        domain.items = items;
-        next[activeDomainId] = domain;
-        return next;
-      });
+        const name = getVal(['item', 'name', 'description']);
+        const qtyStr = getVal(['qty', 'quantity', 'count', 'amount']);
+        
+        if (!name) continue;
+        const parsedQty = parseInt(qtyStr.replace(/[^0-9]/g, ''), 10) || 1;
+        const norm = normalizeItemName(name);
 
+        // Check if exists
+        const { data: existingData, error: findError } = await supabase
+          .from('domain_requirements')
+          .select('id, quantity')
+          .eq('domain_id', activeDomainId)
+          .eq('normalized_name', norm)
+          .eq('status', 'Undelivered')
+          .single();
+
+        if (existingData) {
+          await supabase
+            .from('domain_requirements')
+            .update({ quantity: existingData.quantity + parsedQty })
+            .eq('id', existingData.id);
+        } else {
+          await supabase
+            .from('domain_requirements')
+            .insert([{
+              domain_id: activeDomainId,
+              original_name: name,
+              normalized_name: norm,
+              quantity: parsedQty,
+              status: 'Undelivered'
+            }]);
+        }
+      }
+      
+      setIsLoading(false);
       showToast('Requirements merged successfully!', 'success');
       if (fileInputRef.current) fileInputRef.current.value = '';
+      
+      // Refresh list
+      fetchDomainRequirements(activeDomainId);
     };
     reader.readAsArrayBuffer(file);
   };
 
-  const confirmDelivery = () => {
+  const confirmDelivery = async () => {
     if (!activeDomainId || !itemPendingDelivery) return;
     const amount = typeof deliveryQuantity === 'number' ? deliveryQuantity : 0;
     if (amount <= 0) return;
     
-    setDomains(prev => {
-      const next = { ...prev };
-      const domain = { ...next[activeDomainId] };
-      const items = { ...domain.items };
-      const item = { ...items[itemPendingDelivery] };
+    setIsLoading(true);
 
-      const qtyToDeliver = Math.min(amount, item.undeliveredQty);
-      item.deliveredQty += qtyToDeliver;
-      item.undeliveredQty -= qtyToDeliver;
-
-      items[itemPendingDelivery] = item;
-      domain.items = items;
-      next[activeDomainId] = domain;
-      return next;
-    });
+    const domain = domains[activeDomainId];
+    const itemState = domain.items[itemPendingDelivery];
+    const qtyToDeliver = Math.min(amount, itemState.undeliveredQty);
     
+    const isFullDelivery = qtyToDeliver === itemState.undeliveredQty;
+
+    // First fetch the 'Undelivered' record
+    const { data: undeliveredRow } = await supabase
+      .from('domain_requirements')
+      .select('id, quantity')
+      .eq('domain_id', activeDomainId)
+      .eq('normalized_name', itemPendingDelivery)
+      .eq('status', 'Undelivered')
+      .single();
+
+    if (undeliveredRow) {
+      if (isFullDelivery) {
+        // Full Delivery: check if a 'Delivered' row already exists to avoid duplicates
+        const { data: deliveredRow } = await supabase
+          .from('domain_requirements')
+          .select('id, quantity')
+          .eq('domain_id', activeDomainId)
+          .eq('normalized_name', itemPendingDelivery)
+          .eq('status', 'Delivered')
+          .single();
+          
+        if (deliveredRow) {
+          // Add to existing Delivered and delete Undelivered
+          await supabase.from('domain_requirements').update({ quantity: deliveredRow.quantity + qtyToDeliver }).eq('id', deliveredRow.id);
+          await supabase.from('domain_requirements').delete().eq('id', undeliveredRow.id);
+        } else {
+          // Just swap status to Delivered
+          await supabase.from('domain_requirements').update({ status: 'Delivered' }).eq('id', undeliveredRow.id);
+        }
+      } else {
+        // Partial Delivery
+        // 1. Reduce Undelivered row
+        await supabase
+          .from('domain_requirements')
+          .update({ quantity: undeliveredRow.quantity - qtyToDeliver })
+          .eq('id', undeliveredRow.id);
+          
+        // 2. Add to Delivered row or insert
+        const { data: deliveredRow } = await supabase
+          .from('domain_requirements')
+          .select('id, quantity')
+          .eq('domain_id', activeDomainId)
+          .eq('normalized_name', itemPendingDelivery)
+          .eq('status', 'Delivered')
+          .single();
+          
+        if (deliveredRow) {
+          await supabase
+            .from('domain_requirements')
+            .update({ quantity: deliveredRow.quantity + qtyToDeliver })
+            .eq('id', deliveredRow.id);
+        } else {
+          await supabase
+            .from('domain_requirements')
+            .insert([{
+              domain_id: activeDomainId,
+              original_name: itemState.originalName,
+              normalized_name: itemPendingDelivery,
+              quantity: qtyToDeliver,
+              status: 'Delivered'
+            }]);
+        }
+      }
+    }
+
+    setIsLoading(false);
     setItemPendingDelivery(null);
+    showToast('Delivery confirmed!', 'success');
+    fetchDomainRequirements(activeDomainId);
   };
 
   const exportDomainData = () => {
     if (!activeDomainId || !domains[activeDomainId]) return;
-    const activeDomain = domains[activeDomainId];
-    const data = Object.values(activeDomain.items)
-      .sort((a, b) => a.originalName.localeCompare(b.originalName))
-      .map(item => ({
-        'Item Name': item.originalName,
-        'Undelivered Quantity': item.undeliveredQty,
-        'Delivered Quantity': item.deliveredQty,
-        'Total Quantity': item.undeliveredQty + item.deliveredQty
-      }));
+    const domain = domains[activeDomainId];
+    
+    // Combine items into single array with status
+    const data: any[] = [];
+    let srNo = 1;
+
+    const items = Object.values(domain.items).sort((a, b) => a.originalName.localeCompare(b.originalName));
+
+    items.forEach(item => {
+      if (item.undeliveredQty > 0) {
+        data.push({
+          'SR NO': srNo++,
+          'Item Name': item.originalName,
+          'Quantity': item.undeliveredQty,
+          'Status': 'Undelivered'
+        });
+      }
+      if (item.deliveredQty > 0) {
+        data.push({
+          'SR NO': srNo++,
+          'Item Name': item.originalName,
+          'Quantity': item.deliveredQty,
+          'Status': 'Delivered'
+        });
+      }
+    });
+
+    if (data.length === 0) return;
+
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Domain Data");
-    XLSX.writeFile(wb, `${activeDomain.name.replace(/\s+/g, '_')}_Inventory.csv`);
+    XLSX.writeFile(wb, `${domain.name.replace(/\s+/g, '_')}_requirements.csv`, { bookType: 'csv' });
   };
 
   const activeDomain = activeDomainId ? domains[activeDomainId] : null;
@@ -274,9 +426,10 @@ export default function DeliveryTracking() {
                 </button>
                 <button 
                   onClick={confirmDelivery}
-                  className="flex-1 py-3 px-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg hover:shadow-purple-500/25 hover:scale-[1.02] transition-all"
+                  disabled={isLoading}
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg hover:shadow-purple-500/25 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:scale-100 flex justify-center items-center"
                 >
-                  Confirm Delivery
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Delivery'}
                 </button>
               </div>
             </motion.div>
@@ -286,7 +439,13 @@ export default function DeliveryTracking() {
 
       <AnimatePresence mode="wait">
         {view === 'LANDING' && (
-          <motion.div key="landing" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col items-center justify-center py-12 md:py-24">
+          <motion.div key="landing" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col items-center justify-center py-12 md:py-24 relative w-full">
+            <div className="w-full max-w-5xl px-4 flex justify-start mb-8">
+              <a href="/" className="flex items-center text-purple-400 font-bold hover:text-purple-300 transition-colors">
+                <ArrowLeft className="w-5 h-5 mr-2" /> Back to Inventory
+              </a>
+            </div>
+            
             <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-pink-500 mb-6 text-center tracking-tight">
               Delivery Tracking Engine
             </h1>
@@ -394,9 +553,11 @@ export default function DeliveryTracking() {
                   </div>
                   <button 
                     type="submit"
-                    className="w-full mt-4 py-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-fuchsia-500/25 hover:scale-[1.02] transition-all"
+                    disabled={isLoading}
+                    className="w-full mt-4 py-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-fuchsia-500/25 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:scale-100 flex justify-center items-center"
                   >
-                    Create Domain
+                    {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : null}
+                    {isLoading ? 'Creating...' : 'Create Domain'}
                   </button>
                 </form>
               </div>
@@ -489,9 +650,9 @@ export default function DeliveryTracking() {
                 onChange={handleFileUpload}
               />
               <div className="w-20 h-20 bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 group-hover:-translate-y-2 transition-transform duration-300">
-                <Upload className="w-10 h-10" />
+                {isLoading ? <Loader2 className="w-10 h-10 animate-spin" /> : <Upload className="w-10 h-10" />}
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Upload Master Sheet</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">{isLoading ? 'Syncing with Supabase...' : 'Upload Master Sheet'}</h3>
               <p className="text-lg text-gray-500">Drop a .csv or .xlsx file to instantly merge new requirements</p>
             </motion.div>
 
@@ -589,6 +750,15 @@ export default function DeliveryTracking() {
                   </table>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-12 flex justify-end">
+              <button 
+                onClick={exportDomainData}
+                className="flex items-center px-8 py-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-purple-500/25 hover:scale-[1.02] transition-all"
+              >
+                Export Domain Data (CSV)
+              </button>
             </div>
           </motion.div>
         )}
