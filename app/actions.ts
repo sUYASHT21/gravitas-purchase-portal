@@ -69,6 +69,22 @@ export async function updateQuantity(id: number, change: number) {
   revalidatePath('/');
 }
 
+export async function addSingleItem(name: string, category: string, quantity: number) {
+  const db = await getDb();
+  await db.run('BEGIN TRANSACTION');
+  try {
+    await db.run(`
+      INSERT INTO items (name, category, quantity) 
+      VALUES (?, ?, ?)
+      ON CONFLICT(name) DO UPDATE SET quantity = quantity + ?, lastUpdated = CURRENT_TIMESTAMP
+    `, [name, category, quantity, quantity]);
+    await db.run('COMMIT');
+  } catch (e) {
+    await db.run('ROLLBACK');
+    throw e;
+  }
+  revalidatePath('/');
+}
 export async function importExcelData(data: { name: string, category: string, quantity: number }[]) {
   const db = await getDb();
   
