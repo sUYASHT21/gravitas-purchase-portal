@@ -6,29 +6,31 @@ import { motion } from 'framer-motion';
 
 const AvatarCard = ({ name, role, firstName, delay }: { name: string, role: string, firstName: string, delay: number }) => {
   const [imgError, setImgError] = useState(false);
-  const imgSrc = `/team/${firstName.toLowerCase()}.jpg`;
+  // satya is jpg, everyone else is png
+  const ext = firstName.toLowerCase() === 'satya' ? 'jpg' : 'png';
+  const imgSrc = `/team/${firstName.toLowerCase()}.${ext}`;
 
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col items-center hover:bg-white/10 hover:border-fuchsia-500/30 transition-all text-center w-full max-w-[240px] shadow-xl"
+      className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[2rem] p-6 flex flex-col items-center hover:bg-white/10 hover:border-fuchsia-500/40 transition-all text-center w-full max-w-[300px] shadow-2xl"
     >
-      <div className="w-24 h-24 rounded-full mb-4 bg-black/40 border-2 border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+      <div className="w-56 h-72 rounded-2xl mb-5 bg-black/40 border-2 border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
         {!imgError ? (
           <img 
             src={imgSrc} 
             alt={name} 
             onError={() => setImgError(true)} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-top"
           />
         ) : (
-          <User className="w-12 h-12 text-gray-500" />
+          <User className="w-20 h-20 text-gray-600" />
         )}
       </div>
-      <h3 className="text-lg font-bold text-white mb-1">{name}</h3>
-      <p className="text-xs font-semibold text-fuchsia-400 uppercase tracking-wider">{role}</p>
+      <p className="text-xs font-black text-fuchsia-400 uppercase tracking-widest mb-1">{role}</p>
+      <h3 className="text-xl font-bold text-white">{name}</h3>
     </motion.div>
   );
 };
