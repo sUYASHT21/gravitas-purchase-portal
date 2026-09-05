@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useAuth } from './AuthProvider';
 import { Loader2, FileSpreadsheet, Printer, AlertCircle, Info, Upload } from 'lucide-react';
 import { compileData, CompilePayload } from '@/app/actions';
 
