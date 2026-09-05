@@ -2,8 +2,10 @@
 
 import React, { useState, useRef } from 'react';
 import { useAuth } from './AuthProvider';
-import { Loader2, FileSpreadsheet, Printer, AlertCircle, Info, Upload } from 'lucide-react';
-import { compileData, CompilePayload } from '@/app/actions';
+import { Loader2, FileSpreadsheet, Printer, AlertCircle, Info, Upload, Package } from 'lucide-react';
+import { compileData, CompilePayload, getItems, InventoryItem } from '@/app/actions';
+import { CheckSquare, Square } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export type CompiledItem = {
   name: string;
@@ -26,6 +28,9 @@ export default function CompilationDashboard() {
   const [isCompiling, setIsCompiling] = useState(false);
   const [compiledData, setCompiledData] = useState<CategorizedIndent | null>(null);
   const [compileErrors, setCompileErrors] = useState<string[]>([]);
+  const [deductionMatches, setDeductionMatches] = useState<any[]>([]);
+  const [isDeductionModalOpen, setIsDeductionModalOpen] = useState(false);
+  const [rawCompiledData, setRawCompiledData] = useState<CategorizedIndent | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCompileLinks = async () => {
@@ -49,6 +54,68 @@ export default function CompilationDashboard() {
 
     const payloads: CompilePayload[] = [{ type: 'raw', content: links, sourceName: 'Pasted CSV Data' }];
     await executeCompile(payloads);
+  };
+
+  
+  const processInventoryMatch = async (categories: CategorizedIndent, errors: string[]) => {
+    try {
+      const inventory = await getItems();
+      const matches: any[] = [];
+      
+      Object.entries(categories).forEach(([catKey, items]) => {
+        items.forEach((item, index) => {
+          const invMatch = inventory.find(inv => inv.name.toLowerCase() === item.name.toLowerCase());
+          if (invMatch && invMatch.quantity > 0) {
+            matches.push({
+              catKey,
+              index,
+              originalItem: item,
+              inventoryItem: invMatch,
+              deduct: true
+            });
+          }
+        });
+      });
+      
+      if (matches.length > 0) {
+        setRawCompiledData(categories);
+        setDeductionMatches(matches);
+        setIsDeductionModalOpen(true);
+        setCompileErrors(errors);
+      } else {
+        setCompiledData(categories);
+        setCompileErrors(errors);
+      }
+    } catch (err) {
+      console.error(err);
+      setCompiledData(categories);
+      setCompileErrors(errors);
+    }
+  };
+
+  const handleApplyDeduction = () => {
+    if (!rawCompiledData) return;
+    const finalData = JSON.parse(JSON.stringify(rawCompiledData)) as CategorizedIndent;
+    
+    deductionMatches.forEach(match => {
+      if (match.deduct) {
+        const itemToModify = finalData[match.catKey as keyof CategorizedIndent][match.index];
+        const reqQty = parseInt(String(itemToModify.quantity).replace(/[^0-9]/g, '')) || 0;
+        const availableQty = match.inventoryItem.quantity;
+        itemToModify.quantity = Math.max(0, reqQty - availableQty);
+      }
+    });
+    
+    Object.keys(finalData).forEach(k => {
+      const key = k as keyof CategorizedIndent;
+      finalData[key] = finalData[key].filter(i => {
+        const qty = parseInt(String(i.quantity).replace(/[^0-9]/g, '')) || 0;
+        return qty > 0;
+      });
+    });
+
+    setCompiledData(finalData);
+    setIsDeductionModalOpen(false);
   };
 
   const executeCompile = async (payloads: CompilePayload[]) => {
@@ -87,19 +154,16 @@ export default function CompilationDashboard() {
            // Resubmit both the originally successful (raw/base64) payloads and the new proxy-fetched raw payloads together
            const successfulOriginals = payloads.filter(p => !fallbackErrors.some(err => err.includes(p.content)));
            const retryResult = await compileData([...successfulOriginals, ...fallbackPayloads]);
-           setCompiledData(retryResult.categories);
-           setCompileErrors([...normalErrors, ...retryResult.errors]);
+           await processInventoryMatch(retryResult.categories, [...normalErrors, ...retryResult.errors]);
            return;
         }
         
         // If all fallbacks failed, just show the normal errors
-        setCompiledData(result.categories);
-        setCompileErrors(normalErrors);
+        await processInventoryMatch(result.categories, normalErrors);
         return;
       }
 
-      setCompiledData(result.categories);
-      setCompileErrors(result.errors);
+      await processInventoryMatch(result.categories, result.errors);
     } catch (error) {
       console.error(error);
       setCompileErrors(['A fatal error occurred while compiling data.']);
@@ -217,6 +281,72 @@ export default function CompilationDashboard() {
           </ul>
         </div>
       )}
+
+      
+      {/* Deduction Modal */}
+      <AnimatePresence>
+        {isDeductionModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#1a1325]/95 backdrop-blur-xl rounded-3xl p-8 max-w-3xl w-full shadow-2xl shadow-fuchsia-900/20 border border-fuchsia-500/20 relative max-h-[85vh] overflow-hidden flex flex-col"
+            >
+              <h2 className="text-2xl font-black text-white mb-2 flex items-center">
+                <Package className="w-6 h-6 mr-3 text-fuchsia-400" /> Inventory Matches Found
+              </h2>
+              <p className="text-gray-400 mb-6">
+                We found matching items in the PR Room inventory! Uncheck any items you want to keep as buffer stock. Checked items will be automatically deducted from your final indent requirement.
+              </p>
+              
+              <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-3">
+                {deductionMatches.map((match, i) => {
+                  const reqQty = parseInt(String(match.originalItem.quantity).replace(/[^0-9]/g, '')) || 0;
+                  const newQty = Math.max(0, reqQty - match.inventoryItem.quantity);
+                  
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        const newMatches = [...deductionMatches];
+                        newMatches[i].deduct = !newMatches[i].deduct;
+                        setDeductionMatches(newMatches);
+                      }}
+                      className={`flex items-center p-4 rounded-xl border cursor-pointer transition-all ${match.deduct ? 'bg-fuchsia-500/10 border-fuchsia-500/30' : 'bg-white/5 border-white/10 opacity-60'}`}
+                    >
+                      <div className="mr-4">
+                        {match.deduct ? <CheckSquare className="w-6 h-6 text-fuchsia-400" /> : <Square className="w-6 h-6 text-gray-500" />}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-bold">{match.originalItem.name}</h4>
+                        <p className="text-sm text-gray-400">Inventory: <span className="text-emerald-400 font-bold">{match.inventoryItem.quantity}</span> available</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-400">Indent Requirement</p>
+                        <p className="font-mono">
+                          <span className="line-through text-rose-400 mr-2">{reqQty}</span> 
+                          <span className="font-bold text-emerald-400 text-lg">{match.deduct ? newQty : reqQty}</span>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-white/10">
+                <button 
+                  onClick={handleApplyDeduction}
+                  className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/25 transition-all"
+                >
+                  Proceed to Indent
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {compiledData && (
         <div className="space-y-6">
