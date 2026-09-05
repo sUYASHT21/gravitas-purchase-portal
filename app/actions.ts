@@ -2,11 +2,59 @@
 
 import dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first');
-
 import https from 'node:https';
-import { getDb } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/lib/supabaseClient';
+
+export interface InventoryItem {
+  id: number;
+  name: string;
+  category: string;
+  quantity: number;
+  lastUpdated: string;
+}
+
+export async function getItems(): Promise<InventoryItem[]> {
+  const { data, error } = await supabase.from('items').select('*').order('name', { ascending: true });
+  if (error) {
+    console.error('Error fetching items:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function updateQuantity(id: number, change: number) {
+  const { data: item } = await supabase.from('items').select('quantity').eq('id', id).single();
+  if (!item) return;
+  const newQuantity = Math.max(0, item.quantity + change);
+  await supabase.from('items').update({ quantity: newQuantity, lastUpdated: new Date().toISOString() }).eq('id', id);
+  revalidatePath('/');
+}
+
+export async function addSingleItem(name: string, category: string, quantity: number) {
+  const { data: existing } = await supabase.from('items').select('id, quantity').eq('name', name).single();
+  if (existing) {
+    await supabase.from('items').update({ quantity: existing.quantity + quantity, lastUpdated: new Date().toISOString() }).eq('id', existing.id);
+  } else {
+    await supabase.from('items').insert([{ name, category, quantity }]);
+  }
+  revalidatePath('/');
+}
+
+export async function importExcelData(data: { name: string, category: string, quantity: number }[]) {
+  for (const row of data) {
+    if (!row.name || !row.category) continue;
+    const qty = parseInt(row.quantity as any) || 0;
+    const { data: existing } = await supabase.from('items').select('id, quantity').eq('name', row.name).single();
+    if (existing) {
+      await supabase.from('items').update({ quantity: existing.quantity + qty, lastUpdated: new Date().toISOString() }).eq('id', existing.id);
+    } else {
+      await supabase.from('items').insert([{ name: row.name, category: row.category, quantity: qty }]);
+    }
+  }
+  revalidatePath('/');
+}
 
 function fetchCsvIPv4(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -31,83 +79,6 @@ function fetchCsvIPv4(url: string): Promise<string> {
     
     request(url);
   });
-}
-
-export interface InventoryItem {
-  id: number;
-  name: string;
-  category: string;
-  quantity: number;
-  lastUpdated: string;
-}
-
-export async function getItems(): Promise<InventoryItem[]> {
-  const db = await getDb();
-  return db.all('SELECT * FROM items ORDER BY name ASC');
-}
-
-export async function updateQuantity(id: number, change: number) {
-  const db = await getDb();
-  
-  await db.run('BEGIN TRANSACTION');
-  try {
-    const item = await db.get('SELECT quantity FROM items WHERE id = ?', id);
-    if (!item) throw new Error('Item not found');
-    
-    const newQuantity = Math.max(0, item.quantity + change);
-    
-    await db.run(
-      'UPDATE items SET quantity = ?, lastUpdated = CURRENT_TIMESTAMP WHERE id = ?',
-      [newQuantity, id]
-    );
-    await db.run('COMMIT');
-  } catch (e) {
-    await db.run('ROLLBACK');
-    throw e;
-  }
-  
-  revalidatePath('/');
-}
-
-export async function addSingleItem(name: string, category: string, quantity: number) {
-  const db = await getDb();
-  await db.run('BEGIN TRANSACTION');
-  try {
-    await db.run(`
-      INSERT INTO items (name, category, quantity) 
-      VALUES (?, ?, ?)
-      ON CONFLICT(name) DO UPDATE SET quantity = quantity + ?, lastUpdated = CURRENT_TIMESTAMP
-    `, [name, category, quantity, quantity]);
-    await db.run('COMMIT');
-  } catch (e) {
-    await db.run('ROLLBACK');
-    throw e;
-  }
-  revalidatePath('/');
-}
-export async function importExcelData(data: { name: string, category: string, quantity: number }[]) {
-  const db = await getDb();
-  
-  await db.run('BEGIN TRANSACTION');
-  try {
-    for (const row of data) {
-      if (!row.name || !row.category) continue;
-      
-      const qty = parseInt(row.quantity as any) || 0;
-      
-      await db.run(`
-        INSERT INTO items (name, category, quantity) 
-        VALUES (?, ?, ?)
-        ON CONFLICT(name) DO UPDATE SET quantity = quantity + ?, lastUpdated = CURRENT_TIMESTAMP
-      `, [row.name, row.category, qty, qty]);
-    }
-    await db.run('COMMIT');
-  } catch (e) {
-    await db.run('ROLLBACK');
-    throw e;
-  }
-  
-  revalidatePath('/');
 }
 
 export type CompilePayload = {
