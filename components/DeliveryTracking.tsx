@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Briefcase, Plus, Upload, CheckCircle, ArrowLeft, Package, Check, X, ShieldAlert, Loader2 } from 'lucide-react';
+import { Calendar, Briefcase, Plus, Upload, CheckCircle, ArrowLeft, Package, Check, X, ShieldAlert, Loader2, Trash } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
@@ -68,7 +68,7 @@ export default function DeliveryTracking() {
     const { data, error } = await supabase.from('domains').select('*');
     setIsLoading(false);
     if (error) {
-      console.error(error);
+      console.error(error.message);
       showToast('Failed to fetch domains', 'error');
       return;
     }
@@ -89,7 +89,7 @@ export default function DeliveryTracking() {
     setIsLoading(false);
     
     if (error) {
-      console.error(error);
+      console.error(error.message);
       showToast('Failed to fetch requirements', 'error');
       return;
     }
@@ -102,10 +102,10 @@ export default function DeliveryTracking() {
       const items: Record<string, ItemState> = {};
       
       data.forEach(req => {
-        const norm = req.normalized_name;
+        const norm = normalizeItemName(req.item_name);
         if (!items[norm]) {
           items[norm] = {
-            originalName: req.original_name,
+            originalName: req.item_name,
             normalizedName: norm,
             undeliveredQty: 0,
             deliveredQty: 0
@@ -140,20 +140,26 @@ export default function DeliveryTracking() {
     e.preventDefault();
     if (!newDomainName.trim()) return;
 
+    const contactClean = newContact.trim();
+    if (!/^\d{10}$/.test(contactClean)) {
+      showToast('Contact number must be exactly 10 digits', 'error');
+      return;
+    }
+
     setIsLoading(true);
     const { data, error } = await supabase
       .from('domains')
       .insert([{ 
         name: newDomainName.trim(),
-        organizer: newOrganizer.trim(),
-        contact: newContact.trim()
+        organizer_name: newOrganizer.trim(),
+        contact_no: newContact.trim()
       }])
       .select();
     
     setIsLoading(false);
 
     if (error) {
-      console.error(error);
+      console.error(error.message);
       if (error.code === '23505') {
         showToast('Domain already exists!', 'error');
       } else {
@@ -169,6 +175,29 @@ export default function DeliveryTracking() {
       setNewOrganizer('');
       setNewContact('');
       showToast('Domain added successfully!', 'success');
+    }
+  };
+
+  const handleDeleteDomain = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // prevent clicking the card and opening it
+    if (!window.confirm("Are you sure you want to delete this domain? All associated inventory requirements will be permanently deleted.")) {
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await supabase.from('domains').delete().eq('id', id);
+    setIsLoading(false);
+
+    if (error) {
+      console.error(error.message);
+      showToast('Failed to delete domain', 'error');
+    } else {
+      setDomains(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      showToast('Domain deleted successfully!', 'success');
     }
   };
 
@@ -189,6 +218,8 @@ export default function DeliveryTracking() {
       }
       
       setIsLoading(true);
+
+      let hasError = false;
 
       for (const row of jsonData) {
         const getVal = (searchItems: string[]) => {
@@ -211,34 +242,57 @@ export default function DeliveryTracking() {
           .from('domain_requirements')
           .select('id, quantity')
           .eq('domain_id', activeDomainId)
-          .eq('normalized_name', norm)
+          .ilike('item_name', name)
           .eq('status', 'Undelivered')
           .single();
 
+        if (findError && findError.code !== 'PGRST116') {
+          console.error(findError.message);
+          hasError = true;
+          break;
+        }
+
         if (existingData) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('domain_requirements')
             .update({ quantity: existingData.quantity + parsedQty })
             .eq('id', existingData.id);
+            
+          if (updateError) {
+            console.error(updateError.message);
+            hasError = true;
+            break;
+          }
         } else {
-          await supabase
+          const { error: insertError } = await supabase
             .from('domain_requirements')
             .insert([{
               domain_id: activeDomainId,
-              original_name: name,
-              normalized_name: norm,
+              item_name: name,
               quantity: parsedQty,
               status: 'Undelivered'
             }]);
+            
+          if (insertError) {
+            console.error(insertError.message);
+            hasError = true;
+            break;
+          }
         }
       }
       
       setIsLoading(false);
-      showToast('Requirements merged successfully!', 'success');
-      if (fileInputRef.current) fileInputRef.current.value = '';
       
-      // Refresh list
+      if (hasError) {
+        showToast('Failed to upload some requirements', 'error');
+      } else {
+        showToast('Requirements merged successfully!', 'success');
+      }
+      
+      // Refresh list immediately for real-time UI sync
       fetchDomainRequirements(activeDomainId);
+      
+      if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsArrayBuffer(file);
   };
@@ -261,7 +315,7 @@ export default function DeliveryTracking() {
       .from('domain_requirements')
       .select('id, quantity')
       .eq('domain_id', activeDomainId)
-      .eq('normalized_name', itemPendingDelivery)
+      .eq('item_name', itemState.originalName)
       .eq('status', 'Undelivered')
       .single();
 
@@ -272,7 +326,7 @@ export default function DeliveryTracking() {
           .from('domain_requirements')
           .select('id, quantity')
           .eq('domain_id', activeDomainId)
-          .eq('normalized_name', itemPendingDelivery)
+          .eq('item_name', itemState.originalName)
           .eq('status', 'Delivered')
           .single();
           
@@ -297,7 +351,7 @@ export default function DeliveryTracking() {
           .from('domain_requirements')
           .select('id, quantity')
           .eq('domain_id', activeDomainId)
-          .eq('normalized_name', itemPendingDelivery)
+          .eq('item_name', itemState.originalName)
           .eq('status', 'Delivered')
           .single();
           
@@ -311,8 +365,7 @@ export default function DeliveryTracking() {
             .from('domain_requirements')
             .insert([{
               domain_id: activeDomainId,
-              original_name: itemState.originalName,
-              normalized_name: itemPendingDelivery,
+              item_name: itemState.originalName,
               quantity: qtyToDeliver,
               status: 'Delivered'
             }]);
@@ -523,13 +576,27 @@ export default function DeliveryTracking() {
                 <form onSubmit={handleAddDomain} className="space-y-6">
                   <div>
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Domain Name</label>
-                    <input 
+                    <select
                       required
                       value={newDomainName}
                       onChange={e => setNewDomainName(e.target.value)}
-                      className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
-                      placeholder="e.g. Finance, R&R..."
-                    />
+                      className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white transition-colors appearance-none"
+                    >
+                      <option value="" disabled className="bg-slate-900 text-gray-500">Select a Domain...</option>
+                      {[
+                        "Finance", "Stalls", "Press and Media", "Sales", "Guest Care", 
+                        "Transport and Logistics", "Campus Decor", "Documentation", 
+                        "Pro Events", "Sponsorship and MOU", "Events", "Premium Events", 
+                        "RNR", "Publicity and Marketing", "Purchase", 
+                        "Esports Creative and TechnoSports", "Web and Tech", 
+                        "Design and Printing", "Halls and Refreshments", 
+                        "General Enquiry", "International Participants"
+                      ].map(domain => (
+                        <option key={domain} value={domain} className="bg-slate-900 text-white">
+                          {domain}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Organizer Name</label>
@@ -545,8 +612,12 @@ export default function DeliveryTracking() {
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contact No.</label>
                     <input 
                       required
+                      maxLength={10}
                       value={newContact}
-                      onChange={e => setNewContact(e.target.value)}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setNewContact(val);
+                      }}
                       className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
                       placeholder="+91..."
                     />
@@ -583,6 +654,12 @@ export default function DeliveryTracking() {
                         className="bg-white/5 p-8 rounded-3xl shadow-xl border border-white/10 cursor-pointer hover:border-fuchsia-500/50 hover:bg-white/10 transition-all group relative overflow-hidden"
                       >
                         <div className="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/10 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-fuchsia-500/20 transition-colors" />
+                        <button
+                          onClick={(e) => handleDeleteDomain(e, domain.id)}
+                          className="absolute top-6 right-6 z-20 text-gray-500 hover:text-red-500 transition-colors"
+                        >
+                          <Trash className="w-5 h-5" />
+                        </button>
                         <h4 className="text-2xl font-black text-white mb-3 relative z-10">{domain.name}</h4>
                         <p className="text-base text-gray-400 flex flex-col gap-2 relative z-10 mb-6">
                           <span className="flex items-center"><CheckCircle className="w-4 h-4 mr-2 text-fuchsia-400" /> {domain.organizer}</span>
@@ -603,14 +680,7 @@ export default function DeliveryTracking() {
               </div>
             </div>
             
-            <div className="mt-8 flex justify-end">
-              <button 
-                onClick={exportDomainData}
-                className="flex items-center px-6 py-3 bg-white/5 text-gray-300 font-bold rounded-xl hover:bg-white/10 hover:text-white transition-all border border-white/10 shadow-lg"
-              >
-                Export Domain Data (CSV)
-              </button>
-            </div>
+
           </motion.div>
         )}
 
