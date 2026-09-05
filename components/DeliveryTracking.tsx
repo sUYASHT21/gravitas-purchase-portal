@@ -7,6 +7,17 @@ import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from './AuthProvider';
 
+
+const GRAVITAS_DOMAINS = [
+  "Finance", "Stalls", "Press and Media", "Sales", "Guest Care", 
+  "Transport and Logistics", "Campus Decor", "Documentation", 
+  "Pro Events", "Sponsorship and MOU", "Events", "Premium Events", 
+  "RNR", "Publicity and Marketing", "Purchase", 
+  "Esports Creative and TechnoSports", "Web and Tech", 
+  "Design and Printing", "Halls and Refreshments", 
+  "General Enquiry", "International Participants"
+];
+
 // ----- Types -----
 interface ItemState {
   originalName: string;
@@ -593,7 +604,7 @@ export default function DeliveryTracking() {
                           className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white appearance-none transition-colors"
                         >
                           <option value="" disabled className="bg-slate-900 text-gray-400">Select a Domain...</option>
-                          {GRAVITAS_DOMAINS.map(domain => (
+                          {GRAVITAS_DOMAINS.map((domain: string) => (
                             <option key={domain} value={domain} className="bg-slate-900 text-white">
                               {domain}
                             </option>
