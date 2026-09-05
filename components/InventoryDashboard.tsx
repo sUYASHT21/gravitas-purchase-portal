@@ -4,7 +4,7 @@ import React, { useState, useMemo, useTransition } from 'react';
 import { InventoryItem, addSingleItem } from '@/app/actions';
 import InventoryItemCard from './InventoryItemCard';
 import UploadExcel from './UploadExcel';
-import { Search, Package, Plus, X } from 'lucide-react';
+import { Search, Package, Plus, X, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from './AuthProvider';
 
