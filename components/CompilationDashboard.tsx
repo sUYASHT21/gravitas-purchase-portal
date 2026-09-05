@@ -254,7 +254,7 @@ export default function CompilationDashboard() {
               <img 
                 src="/indentbackground.png" 
                 className="w-full h-full" 
-                style={{ objectFit: '100% 100%', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} 
+                style={{ objectFit: 'fill', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} 
               />
             </div>
 

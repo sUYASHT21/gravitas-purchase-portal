@@ -3,24 +3,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Briefcase, Plus, Upload, CheckCircle, ArrowLeft, Package, Check, X, ShieldAlert, Loader2, Trash } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 
 // ----- Types -----
-type ItemState = {
+interface ItemState {
   originalName: string;
   normalizedName: string;
   undeliveredQty: number;
   deliveredQty: number;
-};
+}
 
-type Domain = {
+interface Domain {
   id: string;
   name: string;
   organizer: string;
   contact: string;
   items: Record<string, ItemState>;
-};
+}
+
+interface ToastNotification {
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
 
 // ----- Utility: Simple NLP Stemming -----
 function normalizeItemName(str: string): string {
@@ -35,13 +40,13 @@ function normalizeItemName(str: string): string {
 }
 
 // ----- Animation Variants -----
-const pageVariants = {
+const pageVariants: Variants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
   exit: { opacity: 0, y: -20, transition: { duration: 0.2 } }
 };
 
-const modalVariants = {
+const modalVariants: Variants = {
   hidden: { opacity: 0, scale: 0.95 },
   visible: { opacity: 1, scale: 1, transition: { type: 'spring', bounce: 0.4, duration: 0.4 } },
   exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } }
