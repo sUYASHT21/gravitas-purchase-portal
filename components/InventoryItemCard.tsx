@@ -4,7 +4,7 @@ import React, { useTransition } from 'react';
 import { updateQuantity, InventoryItem } from '@/app/actions';
 import { Minus, Plus } from 'lucide-react';
 
-export default function InventoryItemCard({ item }: { item: InventoryItem }) {
+export default function InventoryItemCard({ item, isReadOnly }: { item: InventoryItem, isReadOnly?: boolean }) {
   const [isPending, startTransition] = useTransition();
 
   const handleUpdate = (change: number) => {
@@ -32,22 +32,24 @@ export default function InventoryItemCard({ item }: { item: InventoryItem }) {
           <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">stock</span>
         </div>
         
-        <div className="flex space-x-2">
-          <button 
-            onClick={() => handleUpdate(-1)}
-            disabled={isPending || item.quantity === 0}
-            className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/5 text-gray-300 hover:bg-rose-500/20 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            <Minus className="w-6 h-6" />
-          </button>
-          <button 
-            onClick={() => handleUpdate(1)}
-            disabled={isPending}
-            className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/5 text-gray-300 hover:bg-emerald-500/20 hover:text-emerald-400 border border-white/5 hover:border-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
-        </div>
+        {!isReadOnly && (
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => handleUpdate(-1)}
+              disabled={isPending || item.quantity === 0}
+              className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/5 text-gray-300 hover:bg-rose-500/20 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <Minus className="w-6 h-6" />
+            </button>
+            <button 
+              onClick={() => handleUpdate(1)}
+              disabled={isPending}
+              className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/5 text-gray-300 hover:bg-emerald-500/20 hover:text-emerald-400 border border-white/5 hover:border-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

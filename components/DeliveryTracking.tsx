@@ -5,6 +5,7 @@ import { Calendar, Briefcase, Plus, Upload, CheckCircle, ArrowLeft, Package, Che
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from './AuthProvider';
 
 // ----- Types -----
 interface ItemState {
@@ -53,6 +54,8 @@ const modalVariants: Variants = {
 };
 
 export default function DeliveryTracking() {
+  const { user } = useAuth();
+  const isReadOnly = user?.role === 'view-only';
   const [view, setView] = useState<'LANDING' | 'DOMAINS' | 'EVENTS_STUB' | 'DOMAIN_DETAIL'>('LANDING');
   const [domains, setDomains] = useState<Record<string, Domain>>({});
   const [activeDomainId, setActiveDomainId] = useState<string | null>(null);
@@ -712,7 +715,8 @@ export default function DeliveryTracking() {
               </p>
             </div>
 
-            <motion.div 
+            {!isReadOnly && (
+<motion.div 
               whileHover={{ scale: 1.01 }}
               onClick={() => fileInputRef.current?.click()}
               className="w-full bg-white/5 backdrop-blur-md border-2 border-dashed border-white/20 rounded-[2rem] p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 hover:border-fuchsia-500/50 transition-all group mb-16"
@@ -730,6 +734,7 @@ export default function DeliveryTracking() {
               <h3 className="text-2xl font-bold text-white mb-2">{isLoading ? 'Syncing with Supabase...' : 'Upload Master Sheet'}</h3>
               <p className="text-lg text-gray-500">Drop a .csv or .xlsx file to instantly merge new requirements</p>
             </motion.div>
+)}
 
             <div className="space-y-12">
               {/* UNDELIVERED SECTION */}

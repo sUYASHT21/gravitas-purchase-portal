@@ -6,8 +6,11 @@ import InventoryItemCard from './InventoryItemCard';
 import UploadExcel from './UploadExcel';
 import { Search, Package, Plus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from './AuthProvider';
 
 export default function InventoryDashboard({ initialItems }: { initialItems: InventoryItem[] }) {
+  const { user } = useAuth();
+  const isReadOnly = user?.role === 'view-only';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -117,7 +120,7 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
       {filteredItems.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredItems.map(item => (
-            <InventoryItemCard key={item.id} item={item} />
+            <InventoryItemCard key={item.id} item={item} isReadOnly={isReadOnly} />
           ))}
         </div>
       ) : (

@@ -19,6 +19,8 @@ export type CategorizedIndent = {
 };
 
 export default function CompilationDashboard() {
+  const { user } = useAuth();
+  const isReadOnly = user?.role === 'view-only';
   const [links, setLinks] = useState('');
   const [isCompiling, setIsCompiling] = useState(false);
   const [compiledData, setCompiledData] = useState<CategorizedIndent | null>(null);
