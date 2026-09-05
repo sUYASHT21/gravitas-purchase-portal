@@ -35,6 +35,30 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
     });
   }, [initialItems, searchQuery, selectedCategory]);
 
+  
+  const handleExportCSV = () => {
+    const header = ['ID', 'Name', 'Category', 'Quantity', 'Last Updated'];
+    const rows = filteredItems.map(item => [
+      item.id,
+      `"${item.name.replace(/"/g, '""')}"`,
+      `"${item.category.replace(/"/g, '""')}"`,
+      item.quantity,
+      `"${new Date(item.lastUpdated).toLocaleString()}"`
+    ]);
+    
+    const csvContent = [header, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const dateStr = new Date().toISOString().split('T')[0];
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `inventory_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleManualAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName.trim() || !newItemCategory.trim()) return;
@@ -144,7 +168,20 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
         </div>
       )}
 
+      
+      {/* Export CSV Button */}
+      <div className="flex justify-end pt-4 pb-12">
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/10 transition-all shadow-lg"
+        >
+          <Download className="w-5 h-5 mr-2" />
+          Download CSV
+        </button>
+      </div>
+
       {/* Manual Add Modal */}
+
       <AnimatePresence>
         {isAddModalOpen && (
           <motion.div 

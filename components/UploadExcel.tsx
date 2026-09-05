@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import { importExcelData } from '@/app/actions';
+import { autoCategorize } from '@/lib/autoCategorize';
 
 export default function UploadExcel() {
   const [isDragging, setIsDragging] = useState(false);
@@ -30,9 +31,16 @@ export default function UploadExcel() {
           return key ? row[key] : '';
         };
         
+        const itemName = getVal('name') || getVal('item');
+        let category = getVal('category') || getVal('type');
+        
+        if (itemName && !category) {
+          category = autoCategorize(String(itemName));
+        }
+
         return {
-          name: getVal('name') || getVal('item'),
-          category: getVal('category') || getVal('type'),
+          name: itemName,
+          category: category,
           quantity: parseInt(getVal('quantity') || getVal('qty') || '0', 10)
         };
       }).filter(r => r.name && r.category); // Filter invalid rows

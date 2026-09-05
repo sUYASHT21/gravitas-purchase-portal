@@ -6,6 +6,7 @@ import https from 'node:https';
 import { revalidatePath } from 'next/cache';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabaseClient';
+import { autoCategorize } from '@/lib/autoCategorize';
 
 export interface InventoryItem {
   id: number;
@@ -168,9 +169,13 @@ export async function compileData(payloads: CompilePayload[]) {
         const name = getVal(['item', 'name', 'description']);
         const quantity = getVal(['qty', 'quantity', 'count', 'amount']);
         const amazonLink = getVal(['amazon', 'link', 'url']);
-        const category = getVal(['category', 'type', 'dept']) || '';
+        let category = getVal(['category', 'type', 'dept']) || '';
 
         if (!name) continue;
+        
+        if (!category) {
+          category = autoCategorize(String(name));
+        }
 
         // Deduplication & Quantity Summing
         const parsedQty = parseInt(String(quantity).replace(/[^0-9]/g, ''), 10) || 1;
