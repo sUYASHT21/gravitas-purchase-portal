@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock } from 'lucide-react';
+import { Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 type Role = 'admin' | 'view-only';
 
@@ -21,6 +22,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('auth_user');
@@ -32,29 +35,43 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     setMounted(true);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== 'gravitas2026') {
-      setError('Invalid credentials');
+    setIsSigningIn(true);
+    setError('');
+
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      setError(signInError.message);
+      setIsSigningIn(false);
       return;
     }
-    
-    let role: Role | null = null;
-    const lowerEmail = email.trim().toLowerCase();
-    if (lowerEmail === 'teampurchase@gravitas.com') role = 'admin';
-    else if (lowerEmail === 'facultypurchase@gravitas.com') role = 'view-only';
-    
-    if (role) {
-      const userData = { email: lowerEmail, role };
-      setUser(userData);
-      localStorage.setItem('auth_user', JSON.stringify(userData));
-      setError('');
-    } else {
-      setError('Invalid credentials');
+
+    if (data.session?.user?.email) {
+      const lowerEmail = data.session.user.email.toLowerCase();
+      let role: Role | null = null;
+      if (lowerEmail === 'teampurchase@gravitas.com') role = 'admin';
+      else if (lowerEmail === 'facultypurchase@gravitas.com') role = 'view-only';
+
+      if (role) {
+        const userData = { email: lowerEmail, role };
+        setUser(userData);
+        localStorage.setItem('auth_user', JSON.stringify(userData));
+      } else {
+        setError('Unauthorized email role mapping');
+      }
     }
+    
+    setIsSigningIn(false);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     localStorage.removeItem('auth_user');
   };
@@ -91,21 +108,31 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Password</label>
-              <input 
-                type="password" 
-                required 
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white transition-colors"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  required 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white transition-colors pr-12"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
             {error && <p className="text-red-400 text-sm text-center font-medium">{error}</p>}
             <button 
               type="submit" 
-              className="w-full py-4 mt-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg hover:shadow-fuchsia-500/25 transition-all"
+              disabled={isSigningIn}
+              className="w-full py-4 mt-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg hover:shadow-fuchsia-500/25 transition-all flex items-center justify-center disabled:opacity-50"
             >
-              Authenticate
+              {isSigningIn ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Authenticate'}
             </button>
           </form>
         </motion.div>
