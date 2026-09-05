@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import SignOutButton from './SignOutButton';
+import Sidebar from './Sidebar';
 
 type Role = 'admin' | 'view-only';
 
@@ -143,8 +143,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   return (
     <AuthContext.Provider value={{ user, logout }}>
-      <SignOutButton />
-      {children}
+      <div className="flex min-h-screen bg-slate-950">
+        <Sidebar />
+        <main className="flex-1 ml-16 overflow-x-hidden">
+          {children}
+        </main>
+      </div>
     </AuthContext.Provider>
   );
 }
