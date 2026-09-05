@@ -58,6 +58,7 @@ export default function DeliveryTracking() {
   const [newContact, setNewContact] = useState('');
 
   const [itemPendingDelivery, setItemPendingDelivery] = useState<string | null>(null);
+  const [deliveryQuantity, setDeliveryQuantity] = useState<number | ''>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -171,6 +172,8 @@ export default function DeliveryTracking() {
 
   const confirmDelivery = () => {
     if (!activeDomainId || !itemPendingDelivery) return;
+    const amount = typeof deliveryQuantity === 'number' ? deliveryQuantity : 0;
+    if (amount <= 0) return;
     
     setDomains(prev => {
       const next = { ...prev };
@@ -178,8 +181,9 @@ export default function DeliveryTracking() {
       const items = { ...domain.items };
       const item = { ...items[itemPendingDelivery] };
 
-      item.deliveredQty += item.undeliveredQty;
-      item.undeliveredQty = 0;
+      const qtyToDeliver = Math.min(amount, item.undeliveredQty);
+      item.deliveredQty += qtyToDeliver;
+      item.undeliveredQty -= qtyToDeliver;
 
       items[itemPendingDelivery] = item;
       domain.items = items;
@@ -188,6 +192,23 @@ export default function DeliveryTracking() {
     });
     
     setItemPendingDelivery(null);
+  };
+
+  const exportDomainData = () => {
+    if (!activeDomainId || !domains[activeDomainId]) return;
+    const activeDomain = domains[activeDomainId];
+    const data = Object.values(activeDomain.items)
+      .sort((a, b) => a.originalName.localeCompare(b.originalName))
+      .map(item => ({
+        'Item Name': item.originalName,
+        'Undelivered Quantity': item.undeliveredQty,
+        'Delivered Quantity': item.deliveredQty,
+        'Total Quantity': item.undeliveredQty + item.deliveredQty
+      }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Domain Data");
+    XLSX.writeFile(wb, `${activeDomain.name.replace(/\s+/g, '_')}_Inventory.csv`);
   };
 
   const activeDomain = activeDomainId ? domains[activeDomainId] : null;
@@ -229,9 +250,21 @@ export default function DeliveryTracking() {
                 <ShieldAlert className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-black text-white text-center mb-4">Confirm Delivery</h2>
-              <p className="text-gray-400 text-center mb-8 text-lg">
-                Are you sure you want to mark <strong className="text-white bg-white/10 px-2 py-0.5 rounded">{activeDomain.items[itemPendingDelivery]?.undeliveredQty}x {activeDomain.items[itemPendingDelivery]?.originalName}</strong> as delivered for this domain?
+              <p className="text-gray-400 text-center mb-4 text-lg">
+                Are you sure you want to mark <strong className="text-white bg-white/10 px-2 py-0.5 rounded">{activeDomain.items[itemPendingDelivery]?.originalName}</strong> as delivered?
               </p>
+              <div className="mb-8">
+                <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Delivery Quantity</label>
+                <input 
+                  type="number"
+                  min="1"
+                  max={activeDomain.items[itemPendingDelivery]?.undeliveredQty}
+                  value={deliveryQuantity}
+                  onChange={(e) => setDeliveryQuantity(parseInt(e.target.value, 10) || '')}
+                  className="w-full px-5 py-4 bg-black/30 border border-white/10 rounded-xl focus:outline-none focus:border-purple-500 text-white text-center text-xl font-bold"
+                />
+                <p className="text-center text-xs text-gray-500 mt-2">Max available: {activeDomain.items[itemPendingDelivery]?.undeliveredQty}</p>
+              </div>
               <div className="flex gap-4">
                 <button 
                   onClick={() => setItemPendingDelivery(null)}
@@ -408,6 +441,15 @@ export default function DeliveryTracking() {
                 )}
               </div>
             </div>
+            
+            <div className="mt-8 flex justify-end">
+              <button 
+                onClick={exportDomainData}
+                className="flex items-center px-6 py-3 bg-white/5 text-gray-300 font-bold rounded-xl hover:bg-white/10 hover:text-white transition-all border border-white/10 shadow-lg"
+              >
+                Export Domain Data (CSV)
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -490,7 +532,10 @@ export default function DeliveryTracking() {
                               </td>
                               <td className="p-6 text-right">
                                 <button 
-                                  onClick={() => setItemPendingDelivery(item.normalizedName)}
+                                  onClick={() => {
+                                  setItemPendingDelivery(item.normalizedName);
+                                  setDeliveryQuantity(item.undeliveredQty);
+                                }}
                                   className="inline-flex items-center px-6 py-3 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-xl font-bold text-sm transition-all hover:scale-105"
                                 >
                                   <Check className="w-4 h-4 mr-2" /> Delivered

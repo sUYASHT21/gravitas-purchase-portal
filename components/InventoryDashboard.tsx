@@ -1,14 +1,21 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { InventoryItem } from '@/app/actions';
+import React, { useState, useMemo, useTransition } from 'react';
+import { InventoryItem, addSingleItem } from '@/app/actions';
 import InventoryItemCard from './InventoryItemCard';
 import UploadExcel from './UploadExcel';
-import { Search, Package, AlertCircle, Info } from 'lucide-react';
+import { Search, Package, Plus, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function InventoryDashboard({ initialItems }: { initialItems: InventoryItem[] }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState('');
+  const [newItemQty, setNewItemQty] = useState('1');
 
   // Derive categories from items
   const categories = useMemo(() => {
@@ -25,88 +32,84 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
     });
   }, [initialItems, searchQuery, selectedCategory]);
 
-  const lowStockCount = initialItems.filter(i => i.quantity <= 5 && i.quantity > 0).length;
-  const outOfStockCount = initialItems.filter(i => i.quantity === 0).length;
+  const handleManualAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName.trim() || !newItemCategory.trim()) return;
+
+    startTransition(async () => {
+      const qty = parseInt(newItemQty, 10) || 1;
+      await addSingleItem(newItemName.trim(), newItemCategory.trim(), qty);
+      setIsAddModalOpen(false);
+      setNewItemName('');
+      setNewItemCategory('');
+      setNewItemQty('1');
+    });
+  };
 
   return (
     <div className="space-y-8">
       {/* Top Stats & Actions Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 flex flex-col space-y-4">
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg flex items-start">
-            <Info className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-blue-900 font-bold text-sm">Required CSV/Excel Format</h4>
-              <p className="text-blue-800 text-sm mt-1">
-                Your file must have these exact column headers: <strong>Name | Category | Quantity</strong>
-              </p>
-            </div>
+        <div className="md:col-span-2 flex flex-col justify-center bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/10 p-6 shadow-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white">Bulk Upload</h3>
+            <span className="text-sm font-medium text-gray-400">CSV/Excel: Name | Category | Quantity</span>
           </div>
           <UploadExcel />
         </div>
         
-        <div className="flex flex-col space-y-4">
-          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-5 rounded-2xl shadow-lg shadow-blue-200 text-white flex items-center justify-between">
+        <div className="flex flex-col gap-4">
+          <div className="bg-gradient-to-r from-purple-600/80 to-fuchsia-600/80 p-8 rounded-[2rem] shadow-2xl border border-white/10 text-white flex items-center justify-between h-full">
             <div>
-              <p className="text-sm text-blue-100 font-semibold uppercase tracking-wider">Total Items</p>
-              <h4 className="text-3xl font-extrabold mt-1">{initialItems.length}</h4>
+              <p className="text-sm text-fuchsia-200 font-bold uppercase tracking-wider">Total Inventory Items</p>
+              <h4 className="text-5xl font-black mt-2">{initialItems.length}</h4>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-              <Package className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-orange-400 to-amber-500 p-5 rounded-2xl shadow-lg shadow-amber-200 text-white flex items-center justify-between">
-            <div>
-              <p className="text-sm text-amber-100 font-semibold uppercase tracking-wider">Low Stock</p>
-              <h4 className="text-3xl font-extrabold mt-1">{lowStockCount}</h4>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-              <AlertCircle className="w-6 h-6 text-white" />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-rose-500 to-red-600 p-5 rounded-2xl shadow-lg shadow-red-200 text-white flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-100 font-semibold uppercase tracking-wider">Out of Stock</p>
-              <h4 className="text-3xl font-extrabold mt-1">{outOfStockCount}</h4>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-              <AlertCircle className="w-6 h-6 text-white" />
+            <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm">
+              <Package className="w-8 h-8 text-white" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white/70 backdrop-blur-lg p-5 rounded-2xl border border-white/40 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xl shadow-purple-900/5">
+      {/* Filters and Actions */}
+      <div className="bg-white/5 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xl">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />
           </div>
           <input
             type="text"
-            className="block w-full pl-11 pr-4 py-3 border-none rounded-xl leading-5 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-500 sm:text-sm transition-all"
-            placeholder="Search vibrant inventory..."
+            className="block w-full pl-12 pr-4 py-4 bg-black/20 border border-white/10 rounded-xl leading-5 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-all shadow-inner"
+            placeholder="Search inventory..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        <div className="flex space-x-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 hide-scrollbar">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-300 ${
-                selectedCategory === category 
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-pink-200 scale-105' 
-                  : 'bg-white text-gray-600 hover:bg-purple-50 border border-gray-100 hover:text-purple-700'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="flex space-x-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar flex-grow">
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-5 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-300 ${
+                  selectedCategory === category 
+                    ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-lg border border-transparent' 
+                    : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10 hover:text-white'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex-shrink-0 flex items-center px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl border border-white/10 transition-all"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add Item
+          </button>
         </div>
       </div>
 
@@ -118,16 +121,81 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 bg-white rounded-xl border border-gray-200 border-dashed">
-          <Package className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-          <p className="mt-1 text-sm text-gray-500">
+        <div className="text-center py-20 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/10 border-dashed">
+          <Package className="mx-auto h-16 w-16 text-gray-500 mb-4" />
+          <h3 className="text-xl font-bold text-gray-300">No items found</h3>
+          <p className="mt-2 text-gray-500">
             {initialItems.length === 0 
-              ? 'Get started by uploading an Excel file with your inventory.' 
+              ? 'Get started by uploading an Excel file or adding an item manually.' 
               : 'Try adjusting your search or category filter.'}
           </p>
         </div>
       )}
+
+      {/* Manual Add Modal */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#1a1325]/90 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full shadow-2xl shadow-purple-900/20 border border-purple-500/20 relative"
+            >
+              <button 
+                onClick={() => setIsAddModalOpen(false)}
+                className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <h2 className="text-2xl font-black text-white mb-6">Manually Add Item</h2>
+              
+              <form onSubmit={handleManualAdd} className="space-y-5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Item Name</label>
+                  <input 
+                    required
+                    value={newItemName}
+                    onChange={e => setNewItemName(e.target.value)}
+                    className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
+                    placeholder="e.g. A4 Sheets"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Category</label>
+                  <input 
+                    required
+                    value={newItemCategory}
+                    onChange={e => setNewItemCategory(e.target.value)}
+                    className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
+                    placeholder="e.g. Stationery"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Quantity</label>
+                  <input 
+                    required
+                    type="number"
+                    min="0"
+                    value={newItemQty}
+                    onChange={e => setNewItemQty(e.target.value)}
+                    className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
+                  />
+                </div>
+                <button 
+                  type="submit"
+                  disabled={isPending}
+                  className="w-full mt-4 py-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg hover:shadow-purple-500/25 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isPending ? 'Adding...' : 'Add Item'}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
