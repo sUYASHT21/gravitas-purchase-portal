@@ -53,13 +53,20 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
     <div className="space-y-8">
       {/* Top Stats & Actions Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 flex flex-col justify-center bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/10 p-6 shadow-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-white">Bulk Upload</h3>
-            <span className="text-sm font-medium text-gray-400">CSV/Excel: Name | Category | Quantity</span>
+        {!isReadOnly ? (
+          <div className="md:col-span-2 flex flex-col justify-center bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/10 p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Bulk Upload</h3>
+              <span className="text-sm font-medium text-gray-400">CSV/Excel: Name | Category | Quantity</span>
+            </div>
+            <UploadExcel />
           </div>
-          <UploadExcel />
-        </div>
+        ) : (
+          <div className="md:col-span-2 flex flex-col justify-center bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/10 p-6 shadow-2xl items-center text-center">
+            <h3 className="text-xl font-bold text-white mb-2">View-Only Mode</h3>
+            <p className="text-gray-400">You do not have permissions to modify inventory.</p>
+          </div>
+        )}
         
         <div className="flex flex-col gap-4">
           <div className="bg-gradient-to-r from-purple-600/80 to-fuchsia-600/80 p-8 rounded-[2rem] shadow-2xl border border-white/10 text-white flex items-center justify-between h-full">
@@ -106,13 +113,15 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
             ))}
           </div>
 
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex-shrink-0 flex items-center px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl border border-white/10 transition-all"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Item
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex-shrink-0 flex items-center px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl border border-white/10 transition-all"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add Item
+            </button>
+          )}
         </div>
       </div>
 

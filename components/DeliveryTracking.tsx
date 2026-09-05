@@ -577,69 +577,68 @@ export default function DeliveryTracking() {
 
             <div className="flex flex-col lg:flex-row gap-8 items-start w-full">
               {/* Add Domain Form Sidebar (35%) */}
-              <div className="w-full lg:w-[35%] lg:sticky lg:top-8 bg-white/5 backdrop-blur-md p-8 rounded-[2rem] border border-white/10 shadow-2xl">
-                <h3 className="text-2xl font-black text-white mb-8 flex items-center">
-                  <Plus className="w-6 h-6 mr-3 text-fuchsia-500" /> Add Domain
-                </h3>
-                <form onSubmit={handleAddDomain} className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Domain Name</label>
-                    <select
-                      required
-                      value={newDomainName}
-                      onChange={e => setNewDomainName(e.target.value)}
-                      className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white transition-colors appearance-none"
+              {!isReadOnly && (
+                <div className="w-full lg:w-[35%] lg:sticky lg:top-8 bg-white/5 backdrop-blur-md p-8 rounded-[2rem] border border-white/10 shadow-2xl">
+                  <h3 className="text-2xl font-black text-white mb-8 flex items-center">
+                    <Plus className="w-6 h-6 mr-3 text-fuchsia-500" /> Add Domain
+                  </h3>
+                  <form onSubmit={handleAddDomain} className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Domain Name</label>
+                      <div className="relative">
+                        <select
+                          required
+                          value={newDomainName}
+                          onChange={(e) => setNewDomainName(e.target.value)}
+                          className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white appearance-none transition-colors"
+                        >
+                          <option value="" disabled className="bg-slate-900 text-gray-400">Select a Domain...</option>
+                          {GRAVITAS_DOMAINS.map(domain => (
+                            <option key={domain} value={domain} className="bg-slate-900 text-white">
+                              {domain}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-5 pointer-events-none text-gray-400">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Organizer Name</label>
+                      <input 
+                        required
+                        value={newOrganizer}
+                        onChange={e => setNewOrganizer(e.target.value)}
+                        className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
+                        placeholder="e.g. Suyash"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contact No.</label>
+                      <input 
+                        required
+                        type="text"
+                        maxLength={10}
+                        value={newContact}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setNewContact(val);
+                        }}
+                        className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
+                        placeholder="10-digit number"
+                      />
+                    </div>
+                    <button 
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full mt-4 py-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg hover:shadow-fuchsia-500/25 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <option value="" disabled className="bg-slate-900 text-gray-500">Select a Domain...</option>
-                      {[
-                        "Finance", "Stalls", "Press and Media", "Sales", "Guest Care", 
-                        "Transport and Logistics", "Campus Decor", "Documentation", 
-                        "Pro Events", "Sponsorship and MOU", "Events", "Premium Events", 
-                        "RNR", "Publicity and Marketing", "Purchase", 
-                        "Esports Creative and TechnoSports", "Web and Tech", 
-                        "Design and Printing", "Halls and Refreshments", 
-                        "General Enquiry", "International Participants"
-                      ].map(domain => (
-                        <option key={domain} value={domain} className="bg-slate-900 text-white">
-                          {domain}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Organizer Name</label>
-                    <input 
-                      required
-                      value={newOrganizer}
-                      onChange={e => setNewOrganizer(e.target.value)}
-                      className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
-                      placeholder="John Doe"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contact No.</label>
-                    <input 
-                      required
-                      maxLength={10}
-                      value={newContact}
-                      onChange={e => {
-                        const val = e.target.value.replace(/\D/g, '');
-                        setNewContact(val);
-                      }}
-                      className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white placeholder-gray-600 transition-colors"
-                      placeholder="+91..."
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full mt-4 py-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-fuchsia-500/25 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:scale-100 flex justify-center items-center"
-                  >
-                    {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : null}
-                    {isLoading ? 'Creating...' : 'Create Domain'}
-                  </button>
-                </form>
-              </div>
+                      {isLoading ? 'Adding...' : 'Register Domain'}
+                    </button>
+                  </form>
+                </div>
+              )}
 
               {/* Domains Grid (65%) */}
               <div className="w-full lg:w-[65%]">

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import SignOutButton from './SignOutButton';
 
 type Role = 'admin' | 'view-only';
 
@@ -142,6 +143,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   return (
     <AuthContext.Provider value={{ user, logout }}>
+      <SignOutButton />
       {children}
     </AuthContext.Provider>
   );
