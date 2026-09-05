@@ -35,7 +35,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== 'gravitas2026') {
-      setError('Invalid password. Hint: gravitas2026');
+      setError('Invalid credentials');
       return;
     }
     
@@ -50,7 +50,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       localStorage.setItem('auth_user', JSON.stringify(userData));
       setError('');
     } else {
-      setError('Unauthorized email address');
+      setError('Invalid credentials');
     }
   };
 
@@ -86,7 +86,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:border-fuchsia-500 text-white transition-colors"
-                placeholder="teampurchase@gravitas.com"
+                placeholder="suyash_is_funny@gmail.com"
               />
             </div>
             <div>
