@@ -512,12 +512,6 @@ export default function DeliveryTracking() {
       <AnimatePresence mode="wait">
         {view === 'LANDING' && (
           <motion.div key="landing" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col items-center justify-center py-12 md:py-24 relative w-full">
-            <div className="w-full max-w-5xl px-4 flex justify-start mb-8">
-              <a href="/" className="flex items-center text-purple-400 font-bold hover:text-purple-300 transition-colors">
-                <ArrowLeft className="w-5 h-5 mr-2" /> Back to Inventory
-              </a>
-            </div>
-            
             <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-pink-500 mb-6 text-center tracking-tight">
               Delivery Tracking Engine
             </h1>

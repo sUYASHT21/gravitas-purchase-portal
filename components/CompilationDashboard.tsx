@@ -208,10 +208,6 @@ export default function CompilationDashboard() {
   return (
     <div className="space-y-8">
       {/* Input Section (Hidden when printing) */}
-      <div className="print:hidden flex justify-between items-center mb-6">
-        <a href="/" className="text-fuchsia-400 font-bold hover:text-fuchsia-300 transition-colors">← Back to Inventory</a>
-      </div>
-
       <div className="print:hidden bg-white/5 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white/10 shadow-2xl">
         <div className="mb-6 bg-fuchsia-500/10 border-l-4 border-fuchsia-500 p-4 rounded-r-xl flex items-start">
           <Info className="w-6 h-6 text-fuchsia-400 mr-3 flex-shrink-0 mt-0.5" />

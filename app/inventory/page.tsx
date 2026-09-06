@@ -1,6 +1,5 @@
 import { getItems } from '../actions';
 import InventoryDashboard from '@/components/InventoryDashboard';
-import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,20 +16,6 @@ export default async function Home() {
           <p className="mt-4 text-lg text-gray-400 max-w-2xl mx-auto">
             Manage surplus inventory from previous fests. Utilize existing stock before generating new indents!
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link 
-              href="/compile"
-              className="inline-flex items-center px-6 py-3 bg-white/5 text-purple-400 font-bold rounded-xl hover:bg-white/10 hover:text-purple-300 transition-all border border-purple-500/30 shadow-lg shadow-purple-900/20"
-            >
-              Compilation Engine ✨
-            </Link>
-            <Link 
-              href="/delivery"
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg hover:shadow-fuchsia-500/25 hover:scale-[1.02] transition-all"
-            >
-              Delivery Tracking 🚚
-            </Link>
-          </div>
         </div>
 
         <InventoryDashboard initialItems={items} />
