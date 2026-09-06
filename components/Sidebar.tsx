@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Package, FileSpreadsheet, Truck, LogOut } from 'lucide-react';
+import { Home, Package, FileSpreadsheet, Truck, Calendar, LogOut } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 
 export default function Sidebar() {
@@ -14,7 +14,8 @@ export default function Sidebar() {
     { name: 'Home', href: '/', icon: Home },
     { name: 'Inventory', href: '/inventory', icon: Package },
     { name: 'Compilation', href: '/compile', icon: FileSpreadsheet },
-    { name: 'Delivery', href: '/delivery', icon: Truck },
+    { name: 'Domains Delivery', href: '/delivery', icon: Truck },
+    { name: 'Events Delivery', href: '/events', icon: Calendar },
   ];
 
   const handleSignOut = () => {
