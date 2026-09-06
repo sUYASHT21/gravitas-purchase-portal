@@ -90,6 +90,7 @@ export default function EventsDashboard() {
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
+    setSelectedEvent(null); // Fix sticky selection bug
     if (query.length < 3) {
       setSearchResults([]);
       return;
@@ -421,7 +422,7 @@ export default function EventsDashboard() {
             />
             <motion.div 
               initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}} exit={{opacity: 0, scale: 0.95}}
-              className="relative w-full max-w-xl bg-[#0B0A0F] border border-white/10 rounded-[2rem] p-8 shadow-2xl overflow-hidden"
+              className="relative w-full max-w-xl bg-[#0B0A0F] border border-white/10 rounded-[2rem] p-8 shadow-2xl overflow-visible"
             >
               <button onClick={() => setIsAddModalOpen(false)} className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors">
                 <X className="w-6 h-6" />
@@ -445,7 +446,7 @@ export default function EventsDashboard() {
 
                   {/* Autocomplete Dropdown */}
                   {searchResults.length > 0 && !selectedEvent && (
-                    <div className="absolute z-10 w-full mt-2 bg-[#1a1525] border border-fuchsia-500/30 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-2 bg-[#1a1525] border border-fuchsia-500/30 rounded-xl shadow-2xl max-h-72 overflow-y-auto">
                       {searchResults.map(res => (
                         <div 
                           key={res.event_id}
