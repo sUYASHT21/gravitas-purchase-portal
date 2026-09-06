@@ -143,9 +143,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   return (
     <AuthContext.Provider value={{ user, logout }}>
-      <div className="flex min-h-screen bg-slate-950">
+      <div className="flex min-h-screen bg-slate-950 print:bg-white">
         <Sidebar />
-        <main className="flex-1 ml-16 overflow-x-hidden">
+        <main className="flex-1 print:ml-0 ml-16 overflow-x-hidden">
           {children}
         </main>
       </div>

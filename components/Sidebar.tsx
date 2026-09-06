@@ -25,7 +25,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="group fixed top-0 left-0 h-screen w-16 hover:w-64 bg-[#0B0A0F]/80 backdrop-blur-xl border-r border-white/10 flex flex-col transition-all duration-300 z-50 overflow-hidden">
+    <aside className="print:hidden group fixed top-0 left-0 h-screen w-16 hover:w-64 bg-[#0B0A0F]/80 backdrop-blur-xl border-r border-white/10 flex flex-col transition-all duration-300 z-50 overflow-hidden">
       <div className="flex-1 py-8 flex flex-col gap-4 mt-4">
         {navItems.map(item => {
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));

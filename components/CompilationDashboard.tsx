@@ -66,12 +66,16 @@ export default function CompilationDashboard() {
         items.forEach((item, index) => {
           const invMatch = inventory.find(inv => inv.name.toLowerCase() === item.name.toLowerCase());
           if (invMatch && invMatch.quantity > 0) {
+            const reqQty = parseInt(String(item.quantity).replace(/[^0-9]/g, '')) || 0;
+            const defaultDeduct = Math.min(reqQty, invMatch.quantity);
             matches.push({
               catKey,
               index,
               originalItem: item,
               inventoryItem: invMatch,
-              deduct: true
+              deduct: true,
+              deductQty: defaultDeduct,
+              reqQty: reqQty
             });
           }
         });
@@ -98,11 +102,9 @@ export default function CompilationDashboard() {
     const finalData = JSON.parse(JSON.stringify(rawCompiledData)) as CategorizedIndent;
     
     deductionMatches.forEach(match => {
-      if (match.deduct) {
+      if (match.deduct && match.deductQty > 0) {
         const itemToModify = finalData[match.catKey as keyof CategorizedIndent][match.index];
-        const reqQty = parseInt(String(itemToModify.quantity).replace(/[^0-9]/g, '')) || 0;
-        const availableQty = match.inventoryItem.quantity;
-        itemToModify.quantity = Math.max(0, reqQty - availableQty);
+        itemToModify.quantity = Math.max(0, match.reqQty - match.deductQty);
       }
     });
     
@@ -303,31 +305,54 @@ export default function CompilationDashboard() {
               
               <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-3">
                 {deductionMatches.map((match, i) => {
-                  const reqQty = parseInt(String(match.originalItem.quantity).replace(/[^0-9]/g, '')) || 0;
-                  const newQty = Math.max(0, reqQty - match.inventoryItem.quantity);
+                  const reqQty = match.reqQty;
+                  const finalQty = Math.max(0, reqQty - (match.deduct ? match.deductQty : 0));
                   
                   return (
                     <div 
                       key={i} 
-                      onClick={() => {
+                      className={`flex items-center p-4 rounded-xl border transition-all ${match.deduct ? 'bg-fuchsia-500/10 border-fuchsia-500/30' : 'bg-white/5 border-white/10 opacity-60'}`}
+                    >
+                      <div className="mr-4 cursor-pointer" onClick={() => {
                         const newMatches = [...deductionMatches];
                         newMatches[i].deduct = !newMatches[i].deduct;
                         setDeductionMatches(newMatches);
-                      }}
-                      className={`flex items-center p-4 rounded-xl border cursor-pointer transition-all ${match.deduct ? 'bg-fuchsia-500/10 border-fuchsia-500/30' : 'bg-white/5 border-white/10 opacity-60'}`}
-                    >
-                      <div className="mr-4">
+                      }}>
                         {match.deduct ? <CheckSquare className="w-6 h-6 text-fuchsia-400" /> : <Square className="w-6 h-6 text-gray-500" />}
                       </div>
                       <div className="flex-1">
                         <h4 className="text-white font-bold">{match.originalItem.name}</h4>
                         <p className="text-sm text-gray-400">Inventory: <span className="text-emerald-400 font-bold">{match.inventoryItem.quantity}</span> available</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-400">Indent Requirement</p>
+                      
+                      <div className="mr-6 flex flex-col items-center">
+                        <label className="text-xs text-gray-400 mb-1 font-bold">Qty to Deduct</label>
+                        <input 
+                           type="number"
+                           min="0"
+                           max={Math.min(match.reqQty, match.inventoryItem.quantity)}
+                           value={match.deductQty === undefined ? '' : match.deductQty}
+                           disabled={!match.deduct}
+                           onChange={(e) => {
+                              let val = parseInt(e.target.value);
+                              if (isNaN(val)) val = 0;
+                              const maxVal = Math.min(match.reqQty, match.inventoryItem.quantity);
+                              if (val > maxVal) val = maxVal;
+                              if (val < 0) val = 0;
+                              
+                              const newMatches = [...deductionMatches];
+                              newMatches[i].deductQty = val;
+                              setDeductionMatches(newMatches);
+                           }}
+                           className="w-20 px-3 py-1 bg-black/40 border border-white/10 rounded-lg text-white text-center font-bold focus:outline-none focus:border-fuchsia-500"
+                        />
+                      </div>
+                      
+                      <div className="text-right min-w-[120px]">
+                        <p className="text-sm text-gray-400">Final Indent</p>
                         <p className="font-mono">
-                          <span className="line-through text-rose-400 mr-2">{reqQty}</span> 
-                          <span className="font-bold text-emerald-400 text-lg">{match.deduct ? newQty : reqQty}</span>
+                          {match.deduct && match.deductQty > 0 && <span className="line-through text-rose-400 mr-2">{reqQty}</span>}
+                          <span className="font-bold text-emerald-400 text-lg">{finalQty}</span>
                         </p>
                       </div>
                     </div>
