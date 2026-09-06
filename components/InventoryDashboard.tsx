@@ -43,7 +43,7 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
       `"${item.name.replace(/"/g, '""')}"`,
       `"${item.category.replace(/"/g, '""')}"`,
       item.quantity,
-      `"${new Date(item.lastUpdated).toLocaleString()}"`
+      `"${new Date(item.last_updated).toLocaleString()}"`
     ]);
     
     const csvContent = [header, ...rows].map(e => e.join(",")).join("\n");
@@ -65,11 +65,15 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
 
     startTransition(async () => {
       const qty = parseInt(newItemQty, 10) || 1;
-      await addSingleItem(newItemName.trim(), newItemCategory.trim(), qty);
-      setIsAddModalOpen(false);
-      setNewItemName('');
-      setNewItemCategory('');
-      setNewItemQty('1');
+      const res = await addSingleItem(newItemName.trim(), newItemCategory.trim(), qty);
+      if (res && res.error) {
+        alert("Database Error: " + res.error);
+      } else {
+        setIsAddModalOpen(false);
+        setNewItemName('');
+        setNewItemCategory('');
+        setNewItemQty('1');
+      }
     });
   };
 

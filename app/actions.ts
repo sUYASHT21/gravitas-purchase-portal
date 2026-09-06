@@ -13,7 +13,7 @@ export interface InventoryItem {
   name: string;
   category: string;
   quantity: number;
-  lastUpdated: string;
+  last_updated: string;
 }
 
 export async function getItems(): Promise<InventoryItem[]> {
@@ -29,32 +29,46 @@ export async function updateQuantity(id: number, change: number) {
   const { data: item } = await supabase.from('items').select('quantity').eq('id', id).single();
   if (!item) return;
   const newQuantity = Math.max(0, item.quantity + change);
-  await supabase.from('items').update({ quantity: newQuantity, lastUpdated: new Date().toISOString() }).eq('id', id);
+  await supabase.from('items').update({ quantity: newQuantity, last_updated: new Date().toISOString() }).eq('id', id);
   revalidatePath('/');
 }
 
 export async function addSingleItem(name: string, category: string, quantity: number) {
-  const { data: existing } = await supabase.from('items').select('id, quantity').eq('name', name).single();
+  const { data: existing, error: fetchError } = await supabase.from('items').select('id, quantity').eq('name', name).single();
+  if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+    return { error: fetchError.message };
+  }
+
   if (existing) {
-    await supabase.from('items').update({ quantity: existing.quantity + quantity, lastUpdated: new Date().toISOString() }).eq('id', existing.id);
+    const { error } = await supabase.from('items').update({ quantity: existing.quantity + quantity, last_updated: new Date().toISOString() }).eq('id', existing.id);
+    if (error) return { error: error.message };
   } else {
-    await supabase.from('items').insert([{ name, category, quantity }]);
+    const { error } = await supabase.from('items').insert([{ name, category, quantity }]);
+    if (error) return { error: error.message };
   }
   revalidatePath('/');
+  return { success: true };
 }
 
 export async function importExcelData(data: { name: string, category: string, quantity: number }[]) {
   for (const row of data) {
     if (!row.name || !row.category) continue;
     const qty = parseInt(row.quantity as any) || 0;
-    const { data: existing } = await supabase.from('items').select('id, quantity').eq('name', row.name).single();
+    const { data: existing, error: fetchError } = await supabase.from('items').select('id, quantity').eq('name', row.name).single();
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      return { error: fetchError.message };
+    }
+
     if (existing) {
-      await supabase.from('items').update({ quantity: existing.quantity + qty, lastUpdated: new Date().toISOString() }).eq('id', existing.id);
+      const { error } = await supabase.from('items').update({ quantity: existing.quantity + qty, last_updated: new Date().toISOString() }).eq('id', existing.id);
+      if (error) return { error: error.message };
     } else {
-      await supabase.from('items').insert([{ name: row.name, category: row.category, quantity: qty }]);
+      const { error } = await supabase.from('items').insert([{ name: row.name, category: row.category, quantity: qty }]);
+      if (error) return { error: error.message };
     }
   }
   revalidatePath('/');
+  return { success: true };
 }
 
 function fetchCsvIPv4(url: string): Promise<string> {

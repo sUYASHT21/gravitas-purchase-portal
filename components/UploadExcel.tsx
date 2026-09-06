@@ -46,8 +46,12 @@ export default function UploadExcel() {
       }).filter(r => r.name && r.category); // Filter invalid rows
 
       if (mappedData.length > 0) {
-        await importExcelData(mappedData);
-        alert(`Successfully imported ${mappedData.length} items!`);
+        const res = await importExcelData(mappedData);
+        if (res && res.error) {
+          alert("Database Error: " + res.error);
+        } else {
+          alert(`Successfully imported ${mappedData.length} items!`);
+        }
       } else {
         alert("No valid data found. Ensure your sheet has 'Name', 'Category', and 'Quantity' columns.");
       }
