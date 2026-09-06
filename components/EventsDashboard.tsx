@@ -213,6 +213,26 @@ export default function EventsDashboard() {
     fetchTrackedEvents();
   };
 
+  const exportEventData = () => {
+    if (!activeEvent) return;
+    
+    const exportData = activeRequirements.map(req => ({
+      'Item Name': req.item_name,
+      'Required Qty': req.required_qty,
+      'Delivered Qty': req.delivered_qty,
+      'Status': req.delivered_qty >= req.required_qty ? 'Delivered' : 'Pending'
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Delivery");
+    
+    const pocFirstName = activeEvent.poc_name.split(' ')[0] || 'POC';
+    const fileName = `${activeEvent.event_name.replace(/\s+/g, '')}_${pocFirstName}_delivery.csv`;
+    
+    XLSX.writeFile(wb, fileName, { bookType: 'csv' });
+  };
+
   const handleCompleteDelivery = async () => {
     if (!activeEvent) return;
     if (window.confirm("Mark all items for this event as fully delivered?")) {
@@ -366,43 +386,122 @@ export default function EventsDashboard() {
                   )}
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-black/20 text-gray-400 text-xs uppercase tracking-widest border-b border-white/10">
-                        <th className="p-6 font-bold w-16">#</th>
-                        <th className="p-6 font-bold">Item Name</th>
-                        <th className="p-6 font-bold w-40 text-center">Required</th>
-                        <th className="p-6 font-bold w-40 text-center">Delivered</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {activeRequirements.map((req, i) => (
-                        <tr key={req.id} className="hover:bg-white/5 transition-colors">
-                          <td className="p-6 font-mono text-sm text-gray-500">{i + 1}</td>
-                          <td className="p-6 font-bold text-gray-200">{req.item_name}</td>
-                          <td className="p-6 text-center">
-                            <span className="bg-white/10 text-white font-bold px-4 py-2 rounded-xl">
-                              {req.required_qty}
-                            </span>
-                          </td>
-                          <td className="p-6">
-                            <div className="flex items-center justify-center">
-                              <input 
-                                type="number"
-                                min="0"
-                                max={req.required_qty}
-                                value={deliveryInputs[req.id] || 0}
-                                disabled={isReadOnly}
-                                onChange={(e) => updateDeliveryQty(req.id, parseInt(e.target.value) || 0)}
-                                className="w-24 px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-center font-bold focus:outline-none focus:border-emerald-500 transition-colors"
-                              />
-                            </div>
-                          </td>
+                <div className="bg-white/5 backdrop-blur-md rounded-[2rem] shadow-2xl border border-white/10 overflow-hidden">
+                  <div className="bg-gradient-to-r from-rose-500/20 to-orange-500/10 px-8 py-6 border-b border-white/10 flex items-center">
+                    <Package className="w-6 h-6 text-rose-400 mr-3" />
+                    <h3 className="text-xl font-bold text-rose-200">Pending Deliveries</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-black/20 text-gray-400 text-xs uppercase tracking-widest border-b border-white/10">
+                          <th className="p-6 font-bold w-16">#</th>
+                          <th className="p-6 font-bold">Item Name</th>
+                          <th className="p-6 font-bold w-40 text-center">Required</th>
+                          <th className="p-6 font-bold w-40 text-center">Delivered</th>
+                          <th className="p-6 font-bold w-48 text-right">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {activeRequirements.filter(r => r.delivered_qty < r.required_qty).length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-12 text-center text-gray-500 text-lg">No pending items remaining.</td>
+                          </tr>
+                        ) : (
+                          activeRequirements.filter(r => r.delivered_qty < r.required_qty).map((req, i) => (
+                            <tr key={req.id} className="hover:bg-white/5 transition-colors group">
+                              <td className="p-6 font-mono text-sm text-gray-500">{i + 1}</td>
+                              <td className="p-6 font-bold text-gray-200 text-lg">{req.item_name}</td>
+                              <td className="p-6 text-center">
+                                <span className="bg-white/10 text-white font-bold px-4 py-2 rounded-xl">
+                                  {req.required_qty}
+                                </span>
+                              </td>
+                              <td className="p-6">
+                                <div className="flex items-center justify-center">
+                                  <input 
+                                    type="number"
+                                    min="0"
+                                    max={req.required_qty}
+                                    value={deliveryInputs[req.id] === undefined ? req.delivered_qty : deliveryInputs[req.id]}
+                                    disabled={isReadOnly}
+                                    onChange={(e) => updateDeliveryQty(req.id, parseInt(e.target.value) || 0)}
+                                    className="w-24 px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-center font-bold focus:outline-none focus:border-emerald-500 transition-colors"
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-6 text-right">
+                                <button 
+                                  onClick={() => updateDeliveryQty(req.id, req.required_qty)}
+                                  disabled={isReadOnly}
+                                  className="inline-flex items-center px-4 py-2 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-xl font-bold text-sm transition-all hover:scale-105 disabled:opacity-50"
+                                >
+                                  <Check className="w-4 h-4 mr-2" /> Mark Delivered
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* DELIVERED SECTION */}
+                <div className="bg-white/5 backdrop-blur-md rounded-[2rem] shadow-2xl border border-white/10 overflow-hidden opacity-90">
+                  <div className="bg-gradient-to-r from-emerald-500/20 to-teal-500/10 px-8 py-6 border-b border-white/10 flex items-center">
+                    <CheckCircle className="w-6 h-6 text-emerald-400 mr-3" />
+                    <h3 className="text-xl font-bold text-emerald-200">Delivered Items</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-black/20 text-gray-400 text-xs uppercase tracking-widest border-b border-white/10">
+                          <th className="p-6 font-bold w-16">#</th>
+                          <th className="p-6 font-bold">Item Name</th>
+                          <th className="p-6 font-bold w-40 text-center">Delivered</th>
+                          <th className="p-6 font-bold w-48 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {activeRequirements.filter(r => r.delivered_qty >= r.required_qty).length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="p-12 text-center text-gray-500 text-lg">No items delivered yet.</td>
+                          </tr>
+                        ) : (
+                          activeRequirements.filter(r => r.delivered_qty >= r.required_qty).map((req, i) => (
+                            <tr key={req.id} className="bg-black/10">
+                              <td className="p-6 font-mono text-sm text-gray-500">{i + 1}</td>
+                              <td className="p-6 font-semibold text-gray-400 text-lg">{req.item_name}</td>
+                              <td className="p-6 text-center">
+                                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold px-4 py-2 rounded-xl">
+                                  {req.delivered_qty}
+                                </span>
+                              </td>
+                              <td className="p-6 text-right">
+                                <button 
+                                  onClick={() => updateDeliveryQty(req.id, 0)}
+                                  disabled={isReadOnly}
+                                  className="inline-flex items-center px-4 py-2 bg-gray-500/20 text-gray-400 hover:text-white border border-gray-500/30 rounded-xl font-bold text-sm transition-all hover:bg-white/10 disabled:opacity-50"
+                                >
+                                  Undo
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                  <button 
+                    onClick={exportEventData}
+                    className="flex items-center px-8 py-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-purple-500/25 hover:scale-[1.02] transition-all"
+                  >
+                    Export as CSV
+                  </button>
                 </div>
               </div>
             )}
