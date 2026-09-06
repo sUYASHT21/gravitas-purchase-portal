@@ -9,10 +9,12 @@ import { autoCategorize } from '@/lib/autoCategorize';
 export default function UploadExcel() {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
+    setDbError(null);
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -48,7 +50,7 @@ export default function UploadExcel() {
       if (mappedData.length > 0) {
         const res = await importExcelData(mappedData);
         if (res && res.error) {
-          alert("Database Error: " + res.error);
+          setDbError(res.error);
         } else {
           alert(`Successfully imported ${mappedData.length} items!`);
         }
@@ -64,10 +66,16 @@ export default function UploadExcel() {
   };
 
   return (
-    <div 
-      className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-        isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-      }`}
+    <div className="space-y-4">
+      {dbError && (
+        <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded shadow text-red-700 font-bold flex items-center">
+          ⚠️ {dbError}
+        </div>
+      )}
+      <div 
+        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+          isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+        }`}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={(e) => {
@@ -105,6 +113,7 @@ export default function UploadExcel() {
             Ensure columns are named: Name, Category, Quantity
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -13,7 +13,7 @@ export interface InventoryItem {
   name: string;
   category: string;
   quantity: number;
-  last_updated: string;
+  updated_at: string;
 }
 
 export async function getItems(): Promise<InventoryItem[]> {
@@ -29,7 +29,7 @@ export async function updateQuantity(id: number, change: number) {
   const { data: item } = await supabase.from('items').select('quantity').eq('id', id).single();
   if (!item) return;
   const newQuantity = Math.max(0, item.quantity + change);
-  await supabase.from('items').update({ quantity: newQuantity, last_updated: new Date().toISOString() }).eq('id', id);
+  await supabase.from('items').update({ quantity: newQuantity, updated_at: new Date().toISOString() }).eq('id', id);
   revalidatePath('/');
 }
 
@@ -40,7 +40,7 @@ export async function addSingleItem(name: string, category: string, quantity: nu
   }
 
   if (existing) {
-    const { error } = await supabase.from('items').update({ quantity: existing.quantity + quantity, last_updated: new Date().toISOString() }).eq('id', existing.id);
+    const { error } = await supabase.from('items').update({ quantity: existing.quantity + quantity, updated_at: new Date().toISOString() }).eq('id', existing.id);
     if (error) return { error: error.message };
   } else {
     const { error } = await supabase.from('items').insert([{ name, category, quantity }]);
@@ -60,7 +60,7 @@ export async function importExcelData(data: { name: string, category: string, qu
     }
 
     if (existing) {
-      const { error } = await supabase.from('items').update({ quantity: existing.quantity + qty, last_updated: new Date().toISOString() }).eq('id', existing.id);
+      const { error } = await supabase.from('items').update({ quantity: existing.quantity + qty, updated_at: new Date().toISOString() }).eq('id', existing.id);
       if (error) return { error: error.message };
     } else {
       const { error } = await supabase.from('items').insert([{ name: row.name, category: row.category, quantity: qty }]);

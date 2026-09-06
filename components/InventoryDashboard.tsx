@@ -19,6 +19,7 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState('');
   const [newItemQty, setNewItemQty] = useState('1');
+  const [dbError, setDbError] = useState<string | null>(null);
 
   // Derive categories from items
   const categories = useMemo(() => {
@@ -43,7 +44,7 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
       `"${item.name.replace(/"/g, '""')}"`,
       `"${item.category.replace(/"/g, '""')}"`,
       item.quantity,
-      `"${new Date(item.last_updated).toLocaleString()}"`
+      `"${new Date(item.updated_at).toLocaleString()}"`
     ]);
     
     const csvContent = [header, ...rows].map(e => e.join(",")).join("\n");
@@ -65,9 +66,10 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
 
     startTransition(async () => {
       const qty = parseInt(newItemQty, 10) || 1;
+      setDbError(null);
       const res = await addSingleItem(newItemName.trim(), newItemCategory.trim(), qty);
       if (res && res.error) {
-        alert("Database Error: " + res.error);
+        setDbError(res.error);
       } else {
         setIsAddModalOpen(false);
         setNewItemName('');
@@ -197,13 +199,22 @@ export default function InventoryDashboard({ initialItems }: { initialItems: Inv
               className="bg-[#1a1325]/90 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full shadow-2xl shadow-purple-900/20 border border-purple-500/20 relative"
             >
               <button 
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setDbError(null);
+                }}
                 className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
               <h2 className="text-2xl font-black text-white mb-6">Manually Add Item</h2>
               
+              {dbError && (
+                <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm font-bold shadow-lg flex items-start">
+                  <span className="mr-2 text-xl block">⚠️</span> 
+                  <span>{dbError}</span>
+                </div>
+              )}
               <form onSubmit={handleManualAdd} className="space-y-5">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Item Name</label>
