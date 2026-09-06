@@ -56,14 +56,13 @@ export default function EventsDashboard() {
 
   const fetchTrackedEvents = async () => {
     setIsLoading(true);
-    // Fetch unique event_ids from requirements
-    const { data: reqs, error: reqError } = await supabase.from('event_requirements').select('*');
-    if (reqError || !reqs) {
+    const { data: activeEvents, error: activeError } = await supabase.from('events_active').select('event_id');
+    if (activeError || !activeEvents) {
       setIsLoading(false);
       return;
     }
 
-    const eventIds = [...new Set(reqs.map(r => r.event_id))];
+    const eventIds = activeEvents.map(a => a.event_id);
     if (eventIds.length === 0) {
       setTrackedEvents([]);
       setIsLoading(false);
@@ -76,8 +75,11 @@ export default function EventsDashboard() {
       return;
     }
 
+    const { data: reqs } = await supabase.from('event_requirements').select('*').in('event_id', eventIds);
+    const validReqs = reqs || [];
+
     const merged = events.map(ev => {
-      const evReqs = reqs.filter(r => r.event_id === ev.event_id && r.item_name !== '_INIT_');
+      const evReqs = validReqs.filter(r => r.event_id === ev.event_id);
       const totalReq = evReqs.reduce((sum, r) => sum + r.required_qty, 0);
       const totalDeliv = evReqs.reduce((sum, r) => sum + r.delivered_qty, 0);
       const percentDelivered = totalReq === 0 ? 0 : (totalDeliv / totalReq) * 100;
@@ -112,12 +114,9 @@ export default function EventsDashboard() {
       alert("Event is already being tracked!");
       return;
     }
-    // Insert _INIT_ record
-    await supabase.from('event_requirements').insert([{
-      event_id: selectedEvent.event_id,
-      item_name: '_INIT_',
-      required_qty: 0,
-      delivered_qty: 0
+    // Insert into events_active
+    await supabase.from('events_active').insert([{
+      event_id: selectedEvent.event_id
     }]);
     
     setIsAddModalOpen(false);
@@ -131,7 +130,7 @@ export default function EventsDashboard() {
     setActiveEvent(ev);
     // Fetch fresh reqs for this event
     const { data } = await supabase.from('event_requirements').select('*').eq('event_id', ev.event_id);
-    const filteredReqs = (data || []).filter(r => r.item_name !== '_INIT_');
+    const filteredReqs = data || [];
     setActiveRequirements(filteredReqs);
     
     const initialInputs: Record<number, number> = {};
@@ -195,7 +194,7 @@ export default function EventsDashboard() {
   const handleEditRequirements = async () => {
     if (!activeEvent) return;
     if (window.confirm("WARNING: This will delete all existing requirements and their delivery progress. Continue?")) {
-      await supabase.from('event_requirements').delete().eq('event_id', activeEvent.event_id).neq('item_name', '_INIT_');
+      await supabase.from('event_requirements').delete().eq('event_id', activeEvent.event_id);
       setActiveRequirements([]);
       setDeliveryInputs({});
       fetchTrackedEvents();
