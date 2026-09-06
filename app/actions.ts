@@ -17,7 +17,7 @@ export interface InventoryItem {
 }
 
 export async function getItems(): Promise<InventoryItem[]> {
-  const { data, error } = await supabase.from('items').select('*').order('name', { ascending: true });
+  const { data, error } = await supabase.from('inventory_master').select('*').order('name', { ascending: true });
   if (error) {
     console.error('Error fetching items:', error);
     return [];
@@ -26,24 +26,24 @@ export async function getItems(): Promise<InventoryItem[]> {
 }
 
 export async function updateQuantity(id: number, change: number) {
-  const { data: item } = await supabase.from('items').select('quantity').eq('id', id).single();
+  const { data: item } = await supabase.from('inventory_master').select('quantity').eq('id', id).single();
   if (!item) return;
   const newQuantity = Math.max(0, item.quantity + change);
-  await supabase.from('items').update({ quantity: newQuantity, updated_at: new Date().toISOString() }).eq('id', id);
+  await supabase.from('inventory_master').update({ quantity: newQuantity, updated_at: new Date().toISOString() }).eq('id', id);
   revalidatePath('/');
 }
 
 export async function addSingleItem(name: string, category: string, quantity: number) {
-  const { data: existing, error: fetchError } = await supabase.from('items').select('id, quantity').eq('name', name).single();
+  const { data: existing, error: fetchError } = await supabase.from('inventory_master').select('id, quantity').eq('name', name).single();
   if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
     return { error: fetchError.message };
   }
 
   if (existing) {
-    const { error } = await supabase.from('items').update({ quantity: existing.quantity + quantity, updated_at: new Date().toISOString() }).eq('id', existing.id);
+    const { error } = await supabase.from('inventory_master').update({ quantity: existing.quantity + quantity, updated_at: new Date().toISOString() }).eq('id', existing.id);
     if (error) return { error: error.message };
   } else {
-    const { error } = await supabase.from('items').insert([{ name, category, quantity }]);
+    const { error } = await supabase.from('inventory_master').insert([{ name, category, quantity, updated_at: new Date().toISOString() }]);
     if (error) return { error: error.message };
   }
   revalidatePath('/');
@@ -54,16 +54,16 @@ export async function importExcelData(data: { name: string, category: string, qu
   for (const row of data) {
     if (!row.name || !row.category) continue;
     const qty = parseInt(row.quantity as any) || 0;
-    const { data: existing, error: fetchError } = await supabase.from('items').select('id, quantity').eq('name', row.name).single();
+    const { data: existing, error: fetchError } = await supabase.from('inventory_master').select('id, quantity').eq('name', row.name).single();
     if (fetchError && fetchError.code !== 'PGRST116') {
       return { error: fetchError.message };
     }
 
     if (existing) {
-      const { error } = await supabase.from('items').update({ quantity: existing.quantity + qty, updated_at: new Date().toISOString() }).eq('id', existing.id);
+      const { error } = await supabase.from('inventory_master').update({ quantity: existing.quantity + qty, updated_at: new Date().toISOString() }).eq('id', existing.id);
       if (error) return { error: error.message };
     } else {
-      const { error } = await supabase.from('items').insert([{ name: row.name, category: row.category, quantity: qty }]);
+      const { error } = await supabase.from('inventory_master').insert([{ name: row.name, category: row.category, quantity: qty, updated_at: new Date().toISOString() }]);
       if (error) return { error: error.message };
     }
   }
