@@ -67,7 +67,7 @@ const modalVariants: Variants = {
 export default function DeliveryTracking() {
   const { user } = useAuth();
   const isReadOnly = user?.role === 'view-only';
-  const [view, setView] = useState<'LANDING' | 'DOMAINS' | 'EVENTS_STUB' | 'DOMAIN_DETAIL'>('LANDING');
+  const [view, setView] = useState<'DOMAINS' | 'DOMAIN_DETAIL'>('DOMAINS');
   const [domains, setDomains] = useState<Record<string, Domain>>({});
   const [activeDomainId, setActiveDomainId] = useState<string | null>(null);
   
@@ -510,76 +510,17 @@ export default function DeliveryTracking() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {view === 'LANDING' && (
-          <motion.div key="landing" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col items-center justify-center py-12 md:py-24 relative w-full">
-            <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-pink-500 mb-6 text-center tracking-tight">
-              Delivery Tracking Engine
-            </h1>
-            <p className="text-gray-400 mb-16 text-center max-w-2xl text-lg">
-              Manage requirements, track inventory status, and oversee logistics for domains and events through a unified, intelligent interface.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl px-4">
-              <motion.div 
-                whileHover={{ scale: 1.02, y: -5 }}
-                onClick={() => setView('EVENTS_STUB')}
-                className="group cursor-pointer bg-white/5 backdrop-blur-md rounded-[2rem] p-10 shadow-2xl border border-white/10 hover:border-purple-500/50 transition-colors relative overflow-hidden flex flex-col h-full"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="w-20 h-20 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-                  <Calendar className="w-10 h-10" />
-                </div>
-                <h2 className="text-3xl font-black text-white mb-4">Events</h2>
-                <p className="text-gray-400 text-base leading-relaxed mb-8 flex-grow">Track specific event deliveries, manage individual organizing committees, and sync specific requirements directly to the schedule.</p>
-                <div className="flex items-center text-indigo-400 font-bold uppercase tracking-wider text-sm">
-                  Open Module <ArrowLeft className="w-4 h-4 ml-2 rotate-180 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </motion.div>
-
-              <motion.div 
-                whileHover={{ scale: 1.02, y: -5 }}
-                onClick={() => setView('DOMAINS')}
-                className="group cursor-pointer bg-white/5 backdrop-blur-md rounded-[2rem] p-10 shadow-2xl border border-white/10 hover:border-fuchsia-500/50 transition-colors relative overflow-hidden flex flex-col h-full"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="w-20 h-20 bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
-                  <Briefcase className="w-10 h-10" />
-                </div>
-                <h2 className="text-3xl font-black text-white mb-4">Domains</h2>
-                <p className="text-gray-400 text-base leading-relaxed mb-8 flex-grow">Oversee master sheets, manage bulk inventory requirements, and process real-time deliveries for primary domains.</p>
-                <div className="flex items-center text-fuchsia-400 font-bold uppercase tracking-wider text-sm">
-                  Open Module <ArrowLeft className="w-4 h-4 ml-2 rotate-180 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
-        )}
-
-        {view === 'EVENTS_STUB' && (
-          <motion.div key="events" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-32 h-32 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-8">
-              <Calendar className="w-16 h-16 text-indigo-400/50" />
-            </div>
-            <h2 className="text-4xl font-black text-white mb-4">Event Tracking</h2>
-            <p className="text-gray-400 mb-12 text-lg">This module is currently in development and arriving soon.</p>
-            <button 
-              onClick={() => setView('LANDING')}
-              className="px-8 py-4 bg-white/5 text-white font-bold rounded-xl hover:bg-white/10 border border-white/10 transition-all flex items-center gap-3"
-            >
-              <ArrowLeft className="w-5 h-5" /> Return to Hub
-            </button>
-          </motion.div>
-        )}
-
         {view === 'DOMAINS' && (
           <motion.div key="domains" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-            <button 
-              onClick={() => setView('LANDING')}
-              className="flex items-center text-fuchsia-400 font-bold hover:text-fuchsia-300 transition-colors mb-10"
-            >
-              <ArrowLeft className="w-5 h-5 mr-2" /> Back to Engine
-            </button>
 
+
+            <div className="mb-10">
+              <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-pink-500 tracking-tight mb-4">
+                Domains Delivery
+              </h1>
+              <p className="text-gray-400 text-lg">Oversee master sheets and process real-time deliveries for primary domains.</p>
+            </div>
+            
             <div className="flex flex-col lg:flex-row gap-8 items-start w-full">
               {/* Add Domain Form Sidebar (35%) */}
               {!isReadOnly && (
