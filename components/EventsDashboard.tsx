@@ -49,6 +49,8 @@ export default function EventsDashboard() {
 
   // Delivery Tracking State
   const [deliveryInputs, setDeliveryInputs] = useState<Record<number, number>>({});
+  const [dashboardSearch, setDashboardSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'YET_TO_DELIVER' | 'PARTIAL' | 'COMPLETE'>('YET_TO_DELIVER');
 
   useEffect(() => {
     fetchTrackedEvents();
@@ -259,35 +261,79 @@ export default function EventsDashboard() {
     return <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-fuchsia-500" /></div>;
   }
 
+  const searchedEvents = dashboardSearch.length >= 3 || (!isNaN(Number(dashboardSearch)) && dashboardSearch.length > 0)
+    ? trackedEvents.filter(e => e.event_name.toLowerCase().includes(dashboardSearch.toLowerCase()) || e.event_id.includes(dashboardSearch))
+    : trackedEvents;
+
+  const yetToDeliverEvents = searchedEvents.filter(e => e.requirements.length === 0 || e.percentDelivered === 0);
+  const partialEvents = searchedEvents.filter(e => e.percentDelivered > 0 && e.percentDelivered < 100);
+  const completeEvents = searchedEvents.filter(e => e.requirements.length > 0 && e.percentDelivered === 100);
+
+  const displayedEvents = activeTab === 'YET_TO_DELIVER' ? yetToDeliverEvents :
+                          activeTab === 'PARTIAL' ? partialEvents : completeEvents;
+
   return (
     <div className="w-full">
       <AnimatePresence mode="wait">
         {view === 'LANDING' && (
           <motion.div key="landing" initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-20}} className="w-full">
-            <div className="flex justify-between items-end mb-10">
+            <div className="flex justify-between items-end mb-6">
               <div>
                 <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-pink-500 tracking-tight mb-4">
                   Events Delivery
                 </h1>
                 <p className="text-gray-400 text-lg">Track requirement deliveries for technical and non-technical events.</p>
               </div>
-              {!isReadOnly && (
-                <button 
-                  onClick={() => setIsAddModalOpen(true)}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg hover:shadow-fuchsia-500/25 transition-all flex items-center"
-                >
-                  <Plus className="w-5 h-5 mr-2" /> Add Event
-                </button>
-              )}
+              
+              <div className="relative w-72">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input 
+                  type="text"
+                  placeholder="Search events..."
+                  value={dashboardSearch}
+                  onChange={(e) => setDashboardSearch(e.target.value)}
+                  className="w-full pl-12 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-fuchsia-500 transition-colors"
+                />
+                {dashboardSearch && (
+                  <button 
+                    onClick={() => setDashboardSearch('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* TAB NAVIGATION */}
+            <div className="flex space-x-4 mb-8 border-b border-white/10 pb-4">
+              <button 
+                onClick={() => setActiveTab('YET_TO_DELIVER')}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'YET_TO_DELIVER' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-500/10' : 'text-gray-500 hover:bg-white/5'}`}
+              >
+                Yet to Deliver ({yetToDeliverEvents.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab('PARTIAL')}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'PARTIAL' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30 shadow-lg shadow-orange-500/10' : 'text-gray-500 hover:bg-white/5'}`}
+              >
+                Partially Delivered ({partialEvents.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab('COMPLETE')}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'COMPLETE' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-lg shadow-emerald-500/10' : 'text-gray-500 hover:bg-white/5'}`}
+              >
+                100% Delivered ({completeEvents.length})
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {trackedEvents.length === 0 ? (
+              {displayedEvents.length === 0 ? (
                 <div className="col-span-full py-20 text-center text-gray-500 text-lg bg-white/5 border border-white/10 rounded-3xl">
-                  No events are currently being tracked.
+                  No events found in this category.
                 </div>
               ) : (
-                trackedEvents.map(ev => {
+                displayedEvents.map(ev => {
                   const isComplete = ev.requirements.length > 0 && ev.percentDelivered === 100;
                   return (
                     <motion.div 
