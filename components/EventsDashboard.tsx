@@ -64,7 +64,7 @@ export default function EventsDashboard() {
       return;
     }
 
-    const eventIds = activeEvents.map(a => a.event_id);
+    const eventIds = [...new Set(activeEvents.map(a => a.event_id))];
     if (eventIds.length === 0) {
       setTrackedEvents([]);
       setIsLoading(false);
@@ -82,13 +82,14 @@ export default function EventsDashboard() {
 
     const merged = events.map(ev => {
       const evReqs = validReqs.filter(r => r.event_id === ev.event_id);
-      const totalReq = evReqs.reduce((sum, r) => sum + r.required_qty, 0);
-      const totalDeliv = evReqs.reduce((sum, r) => sum + r.delivered_qty, 0);
-      const percentDelivered = totalReq === 0 ? 0 : (totalDeliv / totalReq) * 100;
+      const total = evReqs.length || 0;
+      const delivered = evReqs.filter(r => r.delivered_qty >= r.required_qty).length || 0;
+      const percentDelivered = total > 0 ? Math.round((delivered / total) * 100) : 0;
       return { ...ev, requirements: evReqs, percentDelivered };
     });
 
-    setTrackedEvents(merged);
+    const uniqueEvents = Array.from(new Map(merged.map(item => [item.event_id, item])).values());
+    setTrackedEvents(uniqueEvents);
     setIsLoading(false);
   };
 
@@ -265,9 +266,9 @@ export default function EventsDashboard() {
     ? trackedEvents.filter(e => e.event_name.toLowerCase().includes(dashboardSearch.toLowerCase()) || e.event_id.includes(dashboardSearch))
     : trackedEvents;
 
-  const yetToDeliverEvents = searchedEvents.filter(e => e.requirements.length === 0 || e.percentDelivered === 0);
+  const yetToDeliverEvents = searchedEvents.filter(e => e.percentDelivered === 0);
   const partialEvents = searchedEvents.filter(e => e.percentDelivered > 0 && e.percentDelivered < 100);
-  const completeEvents = searchedEvents.filter(e => e.requirements.length > 0 && e.percentDelivered === 100);
+  const completeEvents = searchedEvents.filter(e => e.percentDelivered === 100);
 
   const displayedEvents = activeTab === 'YET_TO_DELIVER' ? yetToDeliverEvents :
                           activeTab === 'PARTIAL' ? partialEvents : completeEvents;
@@ -334,29 +335,52 @@ export default function EventsDashboard() {
                 </div>
               ) : (
                 displayedEvents.map(ev => {
-                  const isComplete = ev.requirements.length > 0 && ev.percentDelivered === 100;
+                  const isComplete = ev.percentDelivered === 100 && ev.requirements.length > 0;
+                  const isPartial = ev.percentDelivered > 0 && ev.percentDelivered < 100;
+                  
+                  let cardStyle = 'bg-white/5 border-white/10 hover:bg-white/10';
+                  let progressColor = 'text-fuchsia-400';
+                  let barColor = 'bg-gradient-to-r from-purple-500 to-fuchsia-500';
+                  
+                  if (isComplete) {
+                    cardStyle = 'bg-emerald-500/20 border-emerald-500/30';
+                    progressColor = 'text-emerald-400';
+                    barColor = 'bg-emerald-500';
+                  } else if (isPartial) {
+                    cardStyle = 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20';
+                    progressColor = 'text-orange-400';
+                    barColor = 'bg-orange-500';
+                  }
+
                   return (
                     <motion.div 
                       key={ev.event_id}
                       whileHover={{ scale: 1.02 }}
                       onClick={() => openEventDetail(ev)}
-                      className={`p-6 rounded-[2rem] border cursor-pointer transition-all shadow-xl ${
-                        isComplete ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-white/5 border-white/10 hover:bg-white/10'
-                      }`}
+                      className={`p-6 rounded-[2rem] border cursor-pointer transition-all shadow-xl ${cardStyle}`}
                     >
-                      <h3 className="text-xl font-bold text-white mb-2">{ev.event_name}</h3>
-                      <p className="text-sm text-fuchsia-400 font-medium mb-4">{ev.club_name}</p>
-                      
-                      <div className="space-y-2 text-sm text-gray-400">
-                        <div className="flex justify-between">
-                          <span>POC:</span>
-                          <span className="text-gray-200">{ev.poc_name} ({ev.poc_mobile})</span>
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-xl font-black text-white">{ev.event_name}</h3>
+                          <p className="text-gray-400 text-sm mt-1">{ev.club_name}</p>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Progress:</span>
-                          <span className={isComplete ? 'text-emerald-400 font-bold' : 'text-purple-400 font-bold'}>
-                            {ev.percentDelivered.toFixed(0)}% Delivered
+                        <span className="text-xs font-mono text-gray-500 bg-black/40 px-2 py-1 rounded-md border border-white/5">{ev.event_id}</span>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-400">POC: <span className="text-white font-medium">{ev.poc_name}</span></span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">Progress</span>
+                          <span className={`font-black ${progressColor}`}>
+                            {ev.percentDelivered}%
                           </span>
+                        </div>
+                        <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden border border-white/5">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-1000 ${barColor}`}
+                            style={{ width: `${ev.percentDelivered}%` }}
+                          />
                         </div>
                       </div>
                     </motion.div>
