@@ -153,6 +153,7 @@ export default function CompilationDashboard() {
       if (!apiRes.ok) throw new Error('AI API Error');
       
       const aiResponse = await apiRes.json();
+      if (aiResponse.fallback) return categories;
       
       const newCategories: CategorizedIndent = {
         'Food / Provisions': [],

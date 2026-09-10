@@ -5,12 +5,12 @@ export async function POST(req: Request) {
     const { items } = await req.json();
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'Invalid items payload' }, { status: 400 });
+      return NextResponse.json({ fallback: true }, { status: 200 });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY not configured' }, { status: 500 });
+      return NextResponse.json({ fallback: true }, { status: 200 });
     }
 
     const prompt = `Categorize each item in the list into strictly one of four categories: 'Stationery', 'Electricals', 'Chemicals', or 'Food / Provisions'. Return ONLY a valid JSON object where keys are the 4 category names and values are arrays of item names. Items: ${JSON.stringify(items)}`;
@@ -31,16 +31,14 @@ export async function POST(req: Request) {
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error('Gemini API Error:', errText);
-      return NextResponse.json({ error: 'Failed to fetch from Gemini API' }, { status: 500 });
+      return NextResponse.json({ fallback: true }, { status: 200 });
     }
 
     const data = await response.json();
     const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!resultText) {
-      return NextResponse.json({ error: 'Invalid response from Gemini API' }, { status: 500 });
+      return NextResponse.json({ fallback: true }, { status: 200 });
     }
 
     const parsed = JSON.parse(resultText);
@@ -48,6 +46,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('API /categorize Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ fallback: true }, { status: 200 });
   }
 }
