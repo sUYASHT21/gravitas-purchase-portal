@@ -26,6 +26,7 @@ export default function CompilationDashboard() {
   const isReadOnly = user?.role === 'view-only';
   const [links, setLinks] = useState('');
   const [isCompiling, setIsCompiling] = useState(false);
+  const [compilePhase, setCompilePhase] = useState('Generating...');
   const [compiledData, setCompiledData] = useState<CategorizedIndent | null>(null);
   const [compileErrors, setCompileErrors] = useState<string[]>([]);
   const [deductionMatches, setDeductionMatches] = useState<any[]>([]);
@@ -131,7 +132,73 @@ export default function CompilationDashboard() {
     setIsDeductionModalOpen(false);
   };
 
+  const enhanceWithAI = async (categories: CategorizedIndent): Promise<CategorizedIndent> => {
+    let allItems: CompiledItem[] = [];
+    Object.entries(categories).forEach(([key, items]) => {
+      if (key !== 'AmazonItems') {
+         allItems = [...allItems, ...items];
+      }
+    });
+
+    if (allItems.length === 0) return categories;
+
+    try {
+      setCompilePhase('AI Categorizing items...');
+      const apiRes = await fetch('/api/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: allItems.map(i => i.name) })
+      });
+
+      if (!apiRes.ok) throw new Error('AI API Error');
+      
+      const aiResponse = await apiRes.json();
+      
+      const newCategories: CategorizedIndent = {
+        'Food / Provisions': [],
+        'Electricals & Hardware': [],
+        'Chemicals & Lab Supplies': [],
+        'Stationery': [],
+        'AmazonItems': [...categories.AmazonItems]
+      };
+
+      allItems.forEach(item => {
+        let placed = false;
+        for (const [aiCat, aiItems] of Object.entries(aiResponse)) {
+          if (Array.isArray(aiItems) && aiItems.includes(item.name)) {
+             if (newCategories[aiCat as keyof CategorizedIndent]) {
+               newCategories[aiCat as keyof CategorizedIndent].push(item);
+               placed = true;
+               break;
+             }
+          }
+        }
+        if (!placed) {
+          // Fallback
+          for (const [origCat, origItems] of Object.entries(categories)) {
+            if (origCat !== 'AmazonItems' && origItems.some((o: any) => o.name === item.name)) {
+              newCategories[origCat as keyof CategorizedIndent].push(item);
+              break;
+            }
+          }
+        }
+      });
+      
+      const sortFn = (a: any, b: any) => a.name.localeCompare(b.name);
+      newCategories['Stationery'].sort(sortFn);
+      newCategories['Food / Provisions'].sort(sortFn);
+      newCategories['Chemicals & Lab Supplies'].sort(sortFn);
+      newCategories['Electricals & Hardware'].sort(sortFn);
+      
+      return newCategories;
+    } catch (e) {
+      console.error('AI Categorization failed, falling back to local.', e);
+      return categories;
+    }
+  };
+
   const executeCompile = async (payloads: CompilePayload[]) => {
+    setCompilePhase('Generating...');
     try {
       const result = await compileData(payloads);
       
@@ -167,16 +234,16 @@ export default function CompilationDashboard() {
            // Resubmit both the originally successful (raw/base64) payloads and the new proxy-fetched raw payloads together
            const successfulOriginals = payloads.filter(p => !fallbackErrors.some(err => err.includes(p.content)));
            const retryResult = await compileData([...successfulOriginals, ...fallbackPayloads]);
-           await processInventoryMatch(retryResult.categories, [...normalErrors, ...retryResult.errors]);
+           await processInventoryMatch(await enhanceWithAI(retryResult.categories), [...normalErrors, ...retryResult.errors]);
            return;
         }
         
         // If all fallbacks failed, just show the normal errors
-        await processInventoryMatch(result.categories, normalErrors);
+        await processInventoryMatch(await enhanceWithAI(result.categories), normalErrors);
         return;
       }
 
-      await processInventoryMatch(result.categories, result.errors);
+      await processInventoryMatch(await enhanceWithAI(result.categories), result.errors);
     } catch (error) {
       console.error(error);
       setCompileErrors(['A fatal error occurred while compiling data.']);
@@ -267,7 +334,7 @@ export default function CompilationDashboard() {
               className="flex items-center px-8 py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-500/20 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 w-full md:w-auto justify-center"
             >
               {isCompiling ? (
-                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Generating...</>
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> {compilePhase}</>
               ) : (
                 <><FileSpreadsheet className="w-5 h-5 mr-2" /> Generate Indents</>
               )}
