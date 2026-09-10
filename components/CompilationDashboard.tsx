@@ -236,42 +236,43 @@ export default function CompilationDashboard() {
           onChange={(e) => setLinks(e.target.value)}
         />
         
-        <div className="mt-6 flex flex-col md:flex-row justify-end items-center gap-4">
-          <input 
-            type="file" 
-            accept=".csv, .xlsx, .xls"
-            className="hidden"
-            multiple
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isCompiling}
-            className="flex items-center px-6 py-3 bg-white border border-gray-300 text-gray-300 font-bold rounded-xl shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50 w-full md:w-auto justify-center"
-          >
-            <Upload className="w-5 h-5 mr-2" /> Upload Files
-          </button>
-          
-          <button
-            onClick={handleCompileRawText}
-            disabled={isCompiling || !links.trim()}
-            className="flex items-center px-6 py-3 bg-white border border-purple-200 text-purple-700 font-bold rounded-xl shadow-sm hover:bg-purple-50 transition-all disabled:opacity-50 w-full md:w-auto justify-center"
-          >
-            <FileSpreadsheet className="w-5 h-5 mr-2" /> Compile Raw Text
-          </button>
+        <div className="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center">
+             {queuedPayloads.length > 0 && (
+               <span className="text-fuchsia-400 font-bold text-sm bg-fuchsia-500/10 px-4 py-2 rounded-xl border border-fuchsia-500/20">
+                 {queuedPayloads.length} file(s) queued
+               </span>
+             )}
+          </div>
+          <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+            <input 
+              type="file" 
+              multiple
+              accept=".csv, .xlsx"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isCompiling}
+              className="flex items-center px-6 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl hover:bg-white/10 transition-all disabled:opacity-50 w-full md:w-auto justify-center"
+            >
+              <Upload className="w-5 h-5 mr-2" /> Queue Files
+            </button>
 
-          <button
-            onClick={handleCompileLinks}
-            disabled={isCompiling || !links.trim()}
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-md shadow-pink-200 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 w-full md:w-auto justify-center"
-          >
-            {isCompiling ? (
-              <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Fetching...</>
-            ) : (
-              <><FileSpreadsheet className="w-5 h-5 mr-2" /> Fetch & Compile Links</>
-            )}
-          </button>
+            <button
+              onClick={handleGenerateIndents}
+              disabled={isCompiling || (!links.trim() && queuedPayloads.length === 0)}
+              className="flex items-center px-8 py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-500/20 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 w-full md:w-auto justify-center"
+            >
+              {isCompiling ? (
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Generating...</>
+              ) : (
+                <><FileSpreadsheet className="w-5 h-5 mr-2" /> Generate Indents</>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
