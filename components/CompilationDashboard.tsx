@@ -424,7 +424,7 @@ export default function CompilationDashboard() {
             <div 
               className="absolute top-0 left-0 w-full h-full z-0 print:hidden"
               style={{
-                backgroundImage: "url('/indentbackground.png')",
+                backgroundImage: "url('/NEWindent.png')",
                 backgroundSize: '210mm 297mm',
                 backgroundRepeat: 'repeat-y',
               }}
@@ -435,7 +435,7 @@ export default function CompilationDashboard() {
               className="fixed top-0 left-0 w-[210mm] h-[297mm] z-0 hidden print:block"
             >
               <img 
-                src="/indentbackground.png" 
+                src="/NEWindent.png" 
                 className="w-full h-full" 
                 style={{ objectFit: 'fill', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} 
               />
