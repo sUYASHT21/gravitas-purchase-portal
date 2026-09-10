@@ -3,59 +3,27 @@ export function autoCategorize(itemName: string): string {
   
   const lower = itemName.toLowerCase();
   
-  if (
-    lower.includes('wire') || 
-    lower.includes('cable') || 
-    lower.includes('plug') || 
-    lower.includes('led') || 
-    lower.includes('battery') || 
-    lower.includes('bulb') ||
-    lower.includes('switch') ||
-    lower.includes('socket')
-  ) {
+  const electricalsKeywords = ['motor', 'battery', 'esc', 'propeller', 'frame', 'receiver', 'flight controller', 'breadboard', 'sensor', 'mpu', 'flux', 'soldering', 'wire', 'lipo', 'bldc', 'zero pcb', 'node mcu', 'connector', 'tape', 'module', 'cable', 'plug', 'led', 'bulb', 'switch', 'socket'];
+  
+  if (electricalsKeywords.some(kw => lower.includes(kw))) {
     return 'Electricals';
   } 
   
-  if (
-    lower.includes('apple') || 
-    lower.includes('water') || 
-    lower.includes('biscuit') || 
-    lower.includes('juice') || 
-    lower.includes('coffee') || 
-    lower.includes('tea') || 
-    lower.includes('food') ||
-    lower.includes('plate') ||
-    lower.includes('cup') ||
-    lower.includes('snack')
-  ) {
+  const culinaryKeywords = ['apple', 'water', 'biscuit', 'juice', 'coffee', 'tea', 'food', 'plate', 'cup', 'snack'];
+  
+  if (culinaryKeywords.some(kw => lower.includes(kw))) {
     return 'Culinary';
   } 
   
-  if (
-    lower.includes('chemical') || 
-    lower.includes('liquid') || 
-    lower.includes('acid') || 
-    lower.includes('solution') || 
-    lower.includes('powder')
-  ) {
+  const chemicalsKeywords = ['powder', 'oxide', 'charcoal', 'calcium', 'zinc', 'vials', 'dropper', 'acid', 'solution', 'pigment', 'chemical', 'liquid'];
+  
+  if (chemicalsKeywords.some(kw => lower.includes(kw))) {
     return 'Chemicals';
   } 
   
-  if (
-    lower.includes('tape') || 
-    lower.includes('pen') || 
-    lower.includes('paper') || 
-    lower.includes('staple') || 
-    lower.includes('marker') || 
-    lower.includes('glue') || 
-    lower.includes('scissor') || 
-    lower.includes('chart') || 
-    lower.includes('pencil') ||
-    lower.includes('folder') ||
-    lower.includes('file') ||
-    lower.includes('tag') ||
-    lower.includes('tag')
-  ) {
+  const stationeryKeywords = ['paper', 'folder', 'pen', 'marker', 'stapler', 'staple', 'keychains', 'spoons', 'scissors', 'scissor', 'binder', 'glue', 'chart', 'pencil', 'file', 'tag'];
+  
+  if (stationeryKeywords.some(kw => lower.includes(kw))) {
     return 'Stationery';
   }
   

@@ -32,29 +32,38 @@ export default function CompilationDashboard() {
   const [isDeductionModalOpen, setIsDeductionModalOpen] = useState(false);
   const [rawCompiledData, setRawCompiledData] = useState<CategorizedIndent | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [queuedPayloads, setQueuedPayloads] = useState<CompilePayload[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('');
 
-  const handleCompileLinks = async () => {
-    if (!links.trim()) return;
+  const handleGenerateIndents = async () => {
     setIsCompiling(true);
     setCompileErrors([]);
 
-    const payloads: CompilePayload[] = [];
-    const urls = links.split('\n').filter(l => l.trim().length > 0);
-    urls.forEach(url => {
-      payloads.push({ type: 'url', content: url.trim(), sourceName: url.trim() });
-    });
+    const payloadsToCompile = [...queuedPayloads];
+
+    if (links.trim()) {
+      const lines = links.split('\n').filter(l => l.trim().length > 0);
+      let isLinks = lines.every(l => l.trim().startsWith('http'));
+      
+      if (isLinks) {
+        lines.forEach(url => {
+          payloadsToCompile.push({ type: 'url', content: url.trim(), sourceName: url.trim() });
+        });
+      } else {
+        payloadsToCompile.push({ type: 'raw', content: links, sourceName: 'Pasted Data' });
+      }
+    }
     
-    await executeCompile(payloads);
+    if (payloadsToCompile.length === 0) {
+      alert("No data provided to compile.");
+      setIsCompiling(false);
+      return;
+    }
+
+    await executeCompile(payloadsToCompile);
   };
 
-  const handleCompileRawText = async () => {
-    if (!links.trim()) return;
-    setIsCompiling(true);
-    setCompileErrors([]);
-
-    const payloads: CompilePayload[] = [{ type: 'raw', content: links, sourceName: 'Pasted CSV Data' }];
-    await executeCompile(payloads);
-  };
+  
 
   
   const processInventoryMatch = async (categories: CategorizedIndent, errors: string[]) => {
@@ -89,6 +98,8 @@ export default function CompilationDashboard() {
       } else {
         setCompiledData(categories);
         setCompileErrors(errors);
+        const firstCategory = Object.entries(categories).find(([_, items]) => items.length > 0);
+        if (firstCategory) setActiveTab(firstCategory[0]);
       }
     } catch (err) {
       console.error(err);
@@ -178,11 +189,7 @@ export default function CompilationDashboard() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setIsCompiling(true);
-    setCompileErrors([]);
-
     const payloads: CompilePayload[] = [];
-
     const readPromises = Array.from(files).map((file) => {
       return new Promise<void>((resolve) => {
         const reader = new FileReader();
@@ -201,7 +208,7 @@ export default function CompilationDashboard() {
     });
 
     await Promise.all(readPromises);
-    await executeCompile(payloads);
+    setQueuedPayloads(prev => [...prev, ...payloads]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -374,11 +381,32 @@ export default function CompilationDashboard() {
           <div className="print:hidden flex justify-between items-center bg-white/5 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-white/10">
             <h2 className="text-xl font-bold text-white">Preview Indent</h2>
             <button
-              onClick={() => window.print()}
+              onClick={() => {
+                const originalTitle = document.title;
+                document.title = `${activeTab}_Indent_GraVITas26`;
+                window.print();
+                document.title = originalTitle;
+              }}
               className="flex items-center px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/25 hover:scale-[1.02] transition-all"
             >
               <Printer className="w-5 h-5 mr-2" /> Print Official Indent
             </button>
+          </div>
+
+          <div className="print:hidden flex space-x-2 border-b border-white/10 pb-4 overflow-x-auto">
+            {Object.entries(compiledData).filter(([_, items]) => items.length > 0).map(([category]) => (
+              <button
+                key={category}
+                onClick={() => setActiveTab(category)}
+                className={`px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all ${
+                  activeTab === category 
+                    ? 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30' 
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+                }`}
+              >
+                {category === 'AmazonItems' ? 'Amazon Online Orders' : category}
+              </button>
+            ))}
           </div>
 
           {/* Strict A4 Container with Background */}
@@ -443,7 +471,7 @@ export default function CompilationDashboard() {
 
                       {/* Subject Line */}
                       <div className="text-center font-bold mb-6">
-                        <p>Sub.: Request to purchase the items for GraVITas’26 – reg.</p>
+                        <p>Sub.: Request to purchase {activeTab === 'AmazonItems' ? 'Amazon Online Order' : activeTab} items for GraVITas’26 – reg.</p>
                       </div>
 
                       {/* Salutation & Body */}
@@ -466,37 +494,25 @@ export default function CompilationDashboard() {
                         <tbody>
                           {(() => {
                             let runningIndex = 1;
-                            return Object.entries(compiledData).map(([category, items]) => {
-                              if (items.length === 0) return null;
-                              
-                              const isAmazon = category === 'AmazonItems';
-                              const categoryHeader = (
-                                <tr key={`header-${category}`} className="bg-gray-50/50 break-after-avoid">
-                                  <td colSpan={3} className="border border-black px-3 py-2 font-bold underline text-lg">
-                                    {isAmazon ? 'Amazon Online Orders' : category}
+                            const items = compiledData[activeTab as keyof CategorizedIndent] || [];
+                            const isAmazon = activeTab === 'AmazonItems';
+                            
+                            return items.map((item) => {
+                              const isAmazonLink = isAmazon && item.amazonLink;
+                              return (
+                                <tr key={`${activeTab}-${runningIndex}`} className="break-inside-avoid">
+                                  <td className="border border-black px-3 py-2 text-center">{runningIndex++}</td>
+                                  <td className="border border-black px-3 py-2">
+                                    {item.name}
+                                    {isAmazonLink && (
+                                      <div className="text-sm text-blue-800 mt-1 break-all">
+                                        Link: <a href={item.amazonLink} target="_blank" rel="noreferrer" className="underline font-sans">{item.amazonLink}</a>
+                                      </div>
+                                    )}
                                   </td>
+                                  <td className="border border-black px-3 py-2 text-center">{item.quantity}</td>
                                 </tr>
                               );
-
-                              const itemRows = items.map((item) => {
-                                const isAmazonLink = isAmazon && item.amazonLink;
-                                return (
-                                  <tr key={`${category}-${runningIndex}`} className="break-inside-avoid">
-                                    <td className="border border-black px-3 py-2 text-center">{runningIndex++}</td>
-                                    <td className="border border-black px-3 py-2">
-                                      {item.name}
-                                      {isAmazonLink && (
-                                        <div className="text-sm text-blue-800 mt-1 break-all">
-                                          Link: <a href={item.amazonLink} target="_blank" rel="noreferrer" className="underline font-sans">{item.amazonLink}</a>
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="border border-black px-3 py-2 text-center">{item.quantity}</td>
-                                  </tr>
-                                );
-                              });
-
-                              return [categoryHeader, ...itemRows];
                             });
                           })()}
                         </tbody>

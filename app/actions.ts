@@ -200,6 +200,16 @@ export async function compileData(payloads: CompilePayload[]) {
           categories.Stationery; // Fallback
 
         const normalizedName = name.trim().toLowerCase();
+
+        // 1. DATA SANITIZATION & FILTERING (Fixing "Total" rows)
+        const skipKeywords = ["total", "grand total", "subtotal", "cost", "sl no", "sr no", "amount", "price"];
+        if (skipKeywords.some(kw => normalizedName.includes(kw))) {
+          continue;
+        }
+
+        // Ensure quantity is a valid integer > 0
+        if (parsedQty <= 0) continue;
+
         const existingItem = targetCategory.find(i => i.name.trim().toLowerCase() === normalizedName);
         
         if (existingItem) {
