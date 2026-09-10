@@ -3,29 +3,23 @@ export function autoCategorize(itemName: string): string {
   
   const lower = itemName.toLowerCase();
   
-  const electricalsKeywords = ['motor', 'battery', 'esc', 'propeller', 'frame', 'receiver', 'flight controller', 'breadboard', 'sensor', 'mpu', 'flux', 'soldering', 'wire', 'lipo', 'bldc', 'zero pcb', 'node mcu', 'connector', 'tape', 'module', 'cable', 'plug', 'led', 'bulb', 'switch', 'socket'];
+  const foodKeywords = ['milk', 'milk powder', 'turmeric', 'spinach', 'tea', 'coffee', 'sugar', 'salt', 'flour', 'biscuit', 'juice', 'food', 'edible', 'oil', 'grain', 'snack', 'syrup'];
+  
+  if (foodKeywords.some(kw => lower.includes(kw))) {
+    return 'Food / Provisions';
+  } 
+  
+  const electricalsKeywords = ['clip', 'alligator', 'key set', 'allen', 'charger', 'b3', 'nodemcu', 'esp8266', 'board', 'receiver', 'transmitter', 'fsi6', 'fs-i6', 'voltage', 'checker', 'battery', 'lipo', 'motor', 'bldc', 'esc', 'propeller', 'wire', 'pcb', 'soldering', 'flux', 'sensor', 'module', 'cable', 'switch', 'led', 'resistor'];
   
   if (electricalsKeywords.some(kw => lower.includes(kw))) {
-    return 'Electricals';
+    return 'Electricals & Hardware';
   } 
   
-  const culinaryKeywords = ['apple', 'water', 'biscuit', 'juice', 'coffee', 'tea', 'food', 'plate', 'cup', 'snack'];
-  
-  if (culinaryKeywords.some(kw => lower.includes(kw))) {
-    return 'Culinary';
-  } 
-  
-  const chemicalsKeywords = ['powder', 'oxide', 'charcoal', 'calcium', 'zinc', 'vials', 'dropper', 'acid', 'solution', 'pigment', 'chemical', 'liquid'];
+  const chemicalsKeywords = ['sodium', 'carbonate', 'acid', 'oxide', 'charcoal', 'calcium', 'zinc', 'pigment', 'dropper', 'vials', 'iron filings', 'filings', 'citric', 'solution', 'reagent', 'sulfate', 'nitrate', 'ethanol', 'acetone'];
   
   if (chemicalsKeywords.some(kw => lower.includes(kw))) {
-    return 'Chemicals';
+    return 'Chemicals & Lab Supplies';
   } 
   
-  const stationeryKeywords = ['paper', 'folder', 'pen', 'marker', 'stapler', 'staple', 'keychains', 'spoons', 'scissors', 'scissor', 'binder', 'glue', 'chart', 'pencil', 'file', 'tag'];
-  
-  if (stationeryKeywords.some(kw => lower.includes(kw))) {
-    return 'Stationery';
-  }
-  
-  return 'General';
+  return 'Stationery';
 }

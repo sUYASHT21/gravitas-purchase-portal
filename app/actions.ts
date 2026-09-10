@@ -104,11 +104,11 @@ export type CompilePayload = {
 
 export async function compileData(payloads: CompilePayload[]) {
   const categories = {
-    Stationery: [] as any[],
-    Culinary: [] as any[],
-    Chemicals: [] as any[],
-    Electricals: [] as any[],
-    AmazonItems: [] as any[]
+    'Food / Provisions': [] as any[],
+    'Electricals & Hardware': [] as any[],
+    'Chemicals & Lab Supplies': [] as any[],
+    'Stationery': [] as any[],
+    'AmazonItems': [] as any[]
   };
   const errors: string[] = [];
 
@@ -194,9 +194,9 @@ export async function compileData(payloads: CompilePayload[]) {
         // Deduplication & Quantity Summing
         const parsedQty = parseInt(String(quantity).replace(/[^0-9]/g, ''), 10) || 1;
         const targetCategory = amazonLink && amazonLink.startsWith('http') ? categories.AmazonItems :
-          category.toLowerCase().includes('culinary') || category.toLowerCase().includes('food') || category.toLowerCase().includes('beverage') ? categories.Culinary :
-          category.toLowerCase().includes('chemical') || category.toLowerCase().includes('liquid') ? categories.Chemicals :
-          category.toLowerCase().includes('electrical') || category.toLowerCase().includes('wire') || category.toLowerCase().includes('cable') ? categories.Electricals :
+          category === 'Food / Provisions' || category.toLowerCase().includes('food') || category.toLowerCase().includes('culinary') || category.toLowerCase().includes('beverage') ? categories['Food / Provisions'] :
+          category === 'Electricals & Hardware' || category.toLowerCase().includes('electrical') || category.toLowerCase().includes('hardware') || category.toLowerCase().includes('wire') ? categories['Electricals & Hardware'] :
+          category === 'Chemicals & Lab Supplies' || category.toLowerCase().includes('chemical') || category.toLowerCase().includes('liquid') ? categories['Chemicals & Lab Supplies'] :
           categories.Stationery; // Fallback
 
         const normalizedName = name.trim().toLowerCase();
@@ -229,11 +229,11 @@ export async function compileData(payloads: CompilePayload[]) {
   }
 
   const sortFn = (a: any, b: any) => a.name.localeCompare(b.name);
-  categories.Stationery.sort(sortFn);
-  categories.Culinary.sort(sortFn);
-  categories.Chemicals.sort(sortFn);
-  categories.Electricals.sort(sortFn);
-  categories.AmazonItems.sort(sortFn);
+  categories['Stationery'].sort(sortFn);
+  categories['Food / Provisions'].sort(sortFn);
+  categories['Chemicals & Lab Supplies'].sort(sortFn);
+  categories['Electricals & Hardware'].sort(sortFn);
+  categories['AmazonItems'].sort(sortFn);
 
   return { categories, errors };
 }

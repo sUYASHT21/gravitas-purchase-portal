@@ -14,10 +14,10 @@ export type CompiledItem = {
 };
 
 export type CategorizedIndent = {
+  'Food / Provisions': CompiledItem[];
+  'Electricals & Hardware': CompiledItem[];
+  'Chemicals & Lab Supplies': CompiledItem[];
   Stationery: CompiledItem[];
-  Culinary: CompiledItem[];
-  Chemicals: CompiledItem[];
-  Electricals: CompiledItem[];
   AmazonItems: CompiledItem[];
 };
 
